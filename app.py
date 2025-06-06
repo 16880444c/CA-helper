@@ -3,6 +3,7 @@ import json
 import openai
 from datetime import datetime
 import re
+import os
 
 # Set page config
 st.set_page_config(
@@ -136,14 +137,25 @@ def main():
     with st.sidebar:
         st.header("Configuration")
         
-        # Try to get API key from secrets first, then from user input
+        # Try to get API key from secrets first, then environment, then user input
         api_key = None
         try:
+            # First try Streamlit secrets (for cloud deployment)
             api_key = st.secrets["OPENAI_API_KEY"]
             st.success("✅ API key loaded from secrets")
         except:
+            try:
+                # Then try environment variables (for local development)
+                api_key = os.getenv("OPENAI_API_KEY")
+                if api_key:
+                    st.success("✅ API key loaded from environment")
+            except:
+                pass
+        
+        # If no API key found, ask user to input it
+        if not api_key:
             api_key = st.text_input("OpenAI API Key", type="password", 
-                                   help="Enter your OpenAI API key or add it to Streamlit secrets")
+                                   help="Enter your OpenAI API key, add it to Streamlit secrets, or set OPENAI_API_KEY environment variable")
         
         st.markdown("---")
         st.header("About")
