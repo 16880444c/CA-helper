@@ -1,0 +1,570 @@
+{
+  "agreement_metadata": {
+    "title": "Collective Agreement between Coast Mountain College and B.C. Government and Service Employees' Union (BCGEU)",
+    "parties": {
+      "employer": "Coast Mountain College",
+      "union": "B.C. Government and Service Employees' Union (BCGEU)",
+      "bargaining_unit": "Local 712 Instructor Bargaining Unit"
+    },
+    "effective_dates": {
+      "start": "2019-04-01",
+      "end": "2022-03-31"
+    },
+    "document_id": "210628v3 1007-066"
+  },
+  "definitions": {
+    "bargaining_unit": "The unit for collective bargaining for which the B.C. Government and Service Employees' Union is certified by the Industrial Relations Council.",
+    "basic_pay": "The rate of pay negotiated by the parties to this Agreement, including add-to-pay resulting from salary protection.",
+    "child": "A ward of the Superintendent of Child Welfare, or a child of a spouse.",
+    "complainant": "A person who alleges that they have been harassed or discriminated against.",
+    "continuous_employment": "Uninterrupted employment as a regular or non-regular employee with the Coast Mountain College.",
+    "day_of_rest": "A day other than a holiday on which an employee is not ordinarily required to perform the duties of their position. This does not include employees on a leave of absence.",
+    "employee": {
+      "definition": "A member of the bargaining unit and includes instructors who teach a course or in a program granting credit towards a certificate or diploma",
+      "types": {
+        "regular_employee": "An employee who is employed for work which is of a continuous full-time or continuous part-time nature; or who is employed for work which is of a continuous full-time nature and which is expected to last for a six (6) month period or longer; or an employee who has an appointment which has an average workload equivalent of fifty percent (50%) or more of a full-time annual workload on a continuous or a term basis.",
+        "non_regular_employee": "An employee who is employed for work which is not of a continuous nature such as: seasonal positions; positions created to carry out special projects of work which is not continuous; and temporary positions created to cover employees on vacation, short-term disability leave, education leave, compassionate leave, or other leave.",
+        "substitute_instructor": "An employee who is hired to substitute for a regular instructor on an occasional and infrequent basis such as one day of sickness."
+      },
+      "exclusions": [
+        "Incumbents of managerial or confidential positions mutually excluded by the parties",
+        "All part-time and/or short-term instructors which are hired to instruct in subject areas which are not covered by the programme areas as outlined in Clause 31.3"
+      ]
+    },
+    "employer": "Coast Mountain College",
+    "headquarters": "That area within a radius of thirty-two (32) kilometres of where an employee ordinarily performs their duties.",
+    "holiday": "The twenty-four (24) hour period commencing at 0001 hours of a day designated as a paid holiday in this Agreement.",
+    "instructor": "The primary role of an instructor is to facilitate learning for an assigned group of students, including: ongoing planning, preparation, presentation and evaluation of course(s) in an approved program of studies, related administrative tasks, record keeping and monitoring student progress.",
+    "layoff": "A cessation of employment, resulting from elimination of a job, a reorganization, program termination, closure or other material change in organization.",
+    "probation": "A full academic year for the program or in the case of a term appointment, the equivalent of two (2) full-time teaching semesters to which an employee is subject upon appointment or promotion during which time the Employer may reject the probationary employee for just cause.",
+    "relocation": "The movement of an employee from one geographic location to another.",
+    "resignation": "A voluntary notice by the employee that they are terminating their service on the date specified. Whenever possible, regular full-time employees shall give the Employer two (2) months written notice.",
+    "spouse": "A lawful husband or wife, or a person of the opposite sex living in a common-law relationship with the employee for a continuous period of at least one (1) year, or a person of the same sex as the employee and with whom the employee cohabited for a period of at least one (1) year and the employee and this person represent themselves as a couple.",
+    "termination": "The separation of an employee from the College for cause pursuant to Articles 10, 11 or 30.",
+    "travel_status": "Absence of the employee from their headquarters or geographic location on College business with the approval of the Employer.",
+    "union": "The B.C. Government and Service Employees' Union",
+    "workday": "A period of twenty-four (24) consecutive hours commencing with the starting time of any shift."
+  },
+  "articles": {
+    "1": {
+      "title": "PREAMBLE",
+      "sections": {
+        "1.1": {
+          "title": "Notice of Legislative Change",
+          "content": "The parties agree that no formal proposal submitted by either party to amend, repeal or revise the Colleges and Provincial Institutes Act, the Labour Code or regulations made pursuant thereto, which would affect the terms and conditions of employment of employees covered by this Agreement shall be put forward without first notifying the other party in writing of the nature of the proposal."
+        },
+        "1.2": {
+          "title": "Human Rights",
+          "content": "The Employer and the Union agree that under this Collective Agreement there shall be no discrimination, interference, restriction, or coercion exercised or practised with respect to any employee in the matter of hiring, wage rates, training, upgrading, promotion, transfer, layoff, recall, discipline, classification, discharge or otherwise by reason of age, race, creed, colour, national origin, religion, political affiliation or activity, sexual orientation, sex, or marital status, family relationship, place of residence, physical handicap, gender identity, nor by reason of membership or activity in the Union."
+        },
+        "1.3": {
+          "title": "Sexual Harassment",
+          "content": "The Union and the Employer recognize the right of the employees to work in an environment free from sexual harassment and the Employer undertakes to discipline any person employed by the Employer engaging in the sexual harassment of another employee.",
+          "definition": "Sexual harassment means sexual-oriented verbal or physical behaviour which is unwanted by any individuals to whom such behaviour is presented.",
+          "examples": [
+            "touching, patting or other physical contact",
+            "leering, staring or the making of sexual gestures",
+            "implicit and explicit demands for sexual favours",
+            "verbal abuse or threats; unwanted sexual invitations",
+            "physical assault of a sexual nature",
+            "distribution of material or comments, both written and oral, or a pornographic or sexist nature",
+            "promise of reward for sexual favours",
+            "expressed or implied threat for failing to provide sexual favours"
+          ],
+          "key_provisions": [
+            "Both males and females can be sexually harassed by members of either sex",
+            "The behaviour need not always be repeated or persistent; a single incident may suffice",
+            "Employee being harassed has the right to discontinue contact with the alleged harasser without penalty",
+            "Where possible, it shall be the harasser who is transferred, not the harassed employee",
+            "Timelines for filing grievances waived to a maximum of nine (9) months"
+          ]
+        },
+        "1.4": {
+          "title": "Personal Harassment",
+          "content": "The Union and the Employer recognize the right of the employees to work in an environment free from personal harassment.",
+          "definition": "Personal harassment means a course of verbal or physical conduct which causes substantial distress in that person or persons.",
+          "examples": [
+            "physical threat, intimidation, or assault, or unwelcome physical contact",
+            "unwelcome behaviour or comment that demeans, belittles, causes personal humiliation or embarrassment",
+            "implied or expressed promise of reward or threat of reprisal",
+            "improper use of power and authority inherent in the position held",
+            "remarks or behaviour which may reasonably be perceived to create a negative psychological or emotional environment"
+          ]
+        }
+      }
+    },
+    "2": {
+      "title": "UNION RECOGNITION AND RIGHTS",
+      "sections": {
+        "2.1": {
+          "title": "Bargaining Unit Defined",
+          "content": "The bargaining unit shall consist of all employees covered by the certification issued by the Industrial Relations Council except those persons employed in a managerial or confidential capacity."
+        },
+        "2.2": {
+          "title": "Bargaining Agent Recognition",
+          "content": "The Employer recognizes the B.C. Government and Service Employees' Union as the exclusive bargaining agent for all employees to whom the certification issued by the Industrial Relations Council applies."
+        },
+        "2.6": {
+          "title": "Recognition and Rights of Stewards",
+          "content": "The Employer recognizes the Union's right to select stewards to represent employees. A steward shall obtain permission before leaving their work to perform steward duties. Leave for this purpose shall be with pay.",
+          "steward_duties": [
+            "investigation of complaints of an urgent nature",
+            "investigation of grievances and assisting employees in presenting grievances",
+            "supervision of ballot boxes during ratification votes",
+            "attending meetings at the request or with permission of the Employer"
+          ]
+        },
+        "2.9": {
+          "title": "Right to Refuse to Cross Picket Lines or Handle 'Hot Products'",
+          "content": "All employees covered by this Agreement shall have the right to refuse to cross a picket line arising out of a dispute as defined in the Labour Code of British Columbia. Failure to cross a picket line shall not be considered a violation of this Agreement nor grounds for disciplinary action."
+        },
+        "2.10": {
+          "title": "Time Off for Union Business",
+          "subsections": {
+            "without_pay": [
+              "To attend union conventions and affiliated body conventions",
+              "For union business requiring representatives to leave their work area",
+              "For bargaining committee meetings",
+              "To appear as witnesses before arbitration board or Labour Relations Board"
+            ],
+            "with_pay": [
+              "Four (4) employees on Union's Bargaining Committee for negotiations",
+              "Union Chairperson and employees for one (1) hour regional meetings per year",
+              "Union representatives on Joint Committee meetings",
+              "Union Chairperson granted up to twenty percent (20%) release time"
+            ]
+          }
+        }
+      }
+    },
+    "8": {
+      "title": "GRIEVANCES",
+      "sections": {
+        "8.1": {
+          "title": "Grievance Procedure",
+          "content": "Grievances may arise concerning differences between the parties respecting the interpretation, application, operation or any alleged violation of a provision of this Agreement, or the dismissal, discipline or suspension of an employee."
+        },
+        "8.2": {
+          "title": "Step 1",
+          "content": "In the first step, every effort shall be made to settle the dispute with the designated local supervisor. The aggrieved employee shall have the right to have their steward present at such a discussion."
+        },
+        "8.3": {
+          "title": "Time Limits to Present Initial Grievance",
+          "content": "An employee who wishes to present a grievance must do so no later than thirty (30) days after the date on which the employee was notified of the action or circumstances giving rise to the grievance, or first became aware of such action or circumstances."
+        },
+        "8.4": {
+          "title": "Step 2",
+          "content": "The employee may present a grievance by recording it on the appropriate form, setting out the nature of the grievance, stating the articles allegedly violated, and the remedy required, then transmitting it through the union steward to the Employer's representative."
+        },
+        "8.9": {
+          "title": "Dismissal or Suspension Grievance",
+          "content": "In the case of dismissal, the grievance may be filed directly at arbitration within thirty (30) days. In the case of suspension, the grievance may commence at Step 2 within thirty (30) days."
+        }
+      }
+    },
+    "10": {
+      "title": "DISMISSAL, SUSPENSION AND DISCIPLINE",
+      "sections": {
+        "10.1": {
+          "title": "Burden of Proof",
+          "content": "In all cases of discipline, the burden of proof of just cause shall rest with the Employer."
+        },
+        "10.2": {
+          "title": "Dismissal",
+          "content": "The Employer may dismiss any employee for just cause. Notice of dismissal shall be in writing and shall set forth the reasons for dismissal."
+        },
+        "10.6": {
+          "title": "Personnel File",
+          "content": "An employee or the President of the Union (with written authority) shall be entitled to review an employee's personnel file. Any disciplinary document shall not be quoted after fifteen (15) months from the date it was issued, provided there has not been any further disciplinary infraction."
+        },
+        "10.7": {
+          "title": "Right to Have Steward Present",
+          "content": "An employee shall have the right to have their steward present at any discussion with supervisory personnel which the employee believes might be the basis of disciplinary action."
+        }
+      }
+    },
+    "11": {
+      "title": "SENIORITY, LAYOFF AND RECALL",
+      "sections": {
+        "11.1": {
+          "title": "Seniority",
+          "content": "Seniority shall mean the length of continuous service as an employee of the College. Seniority for part-time employees shall be prorated on the basis of full-time workload."
+        },
+        "11.5": {
+          "title": "Seniority Accrual",
+          "content": "Employees shall maintain and accrue seniority for all service within the bargaining unit, periods of leave for illness or injury for a maximum of two (2) years, and periods of leave for any purpose except as outlined in specific clauses."
+        },
+        "11.9": {
+          "title": "Layoff",
+          "content": "In the event of a layoff, employees shall be laid off in reverse order of seniority within their seniority group providing those retained are qualified to perform the work available.",
+          "bumping_procedure": {
+            "regular_employees_3_plus_years": "Have the right to bump employees in any of the nine (9) College geographic locations",
+            "regular_employees_under_3_years": "May bump within their geographic location only",
+            "geographic_locations": [
+              "Queen Charlotte City",
+              "Prince Rupert", 
+              "Terrace",
+              "Kitimat",
+              "Hazelton",
+              "Smithers",
+              "Houston",
+              "Stewart",
+              "Nass Valley"
+            ]
+          }
+        },
+        "11.11": {
+          "title": "Recall",
+          "content": "Regular employees on layoff shall retain recall rights for a period of two (2) years within the geographic region from which they were laid off. Regular employees with three (3) or more years service shall retain recall rights throughout the College region."
+        }
+      }
+    },
+    "12": {
+      "title": "SERVICE CAREER POLICY",
+      "sections": {
+        "12.8": {
+          "title": "Appointment Procedures",
+          "content": "Appointments, including promotions, filling vacancies, and transfers shall be on the basis of full qualifications and seniority. Full qualifications being sufficient, the candidate with greater seniority shall be selected."
+        },
+        "12.9": {
+          "title": "Postings",
+          "content": "All vacancies in existing positions and all new positions shall be posted within fourteen (14) days. Postings shall be throughout the College region for five (5) working days prior to outside advertising.",
+          "posting_requirements": [
+            "nature of position",
+            "qualifications",
+            "experience",
+            "skills",
+            "whether shift work is involved",
+            "wages or salary rate or range",
+            "specific location"
+          ]
+        }
+      }
+    },
+    "15": {
+      "title": "OVERTIME",
+      "sections": {
+        "15.1": {
+          "title": "Definitions",
+          "definitions": {
+            "overtime": "Work performed by a full-time employee in excess or outside of their regularly scheduled hours of work",
+            "straight_time_rate": "The hourly rate of remuneration",
+            "time_and_one_half": "One and one-half times (1½x) the straight-time rate",
+            "double_time": "Twice (2x) the straight-time rate"
+          }
+        },
+        "15.6": {
+          "title": "Overtime Compensation",
+          "rates": {
+            "first_two_hours_regular_day": "Time and one-half (1½x)",
+            "beyond_two_hours_regular_day": "Double-time (2x)",
+            "day_of_rest": "Double-time (2x) for all hours",
+            "designated_holiday": "Double-time (2x) plus regular day's pay",
+            "christmas_new_years": "Double-time and one-half (2½x) plus regular day's pay"
+          }
+        },
+        "15.9": {
+          "title": "Right to Refuse Overtime",
+          "content": "All employees shall have the right to refuse to work overtime, except when required to do so in emergency situations, without being subject to disciplinary action for so refusing."
+        }
+      }
+    },
+    "16": {
+      "title": "PAID HOLIDAYS",
+      "sections": {
+        "16.1": {
+          "title": "Paid Holidays",
+          "holidays": [
+            "New Year's Day",
+            "Family Day", 
+            "Good Friday",
+            "Easter Monday",
+            "Victoria Day",
+            "Canada Day",
+            "BC Day",
+            "Labour Day",
+            "Thanksgiving Day",
+            "Remembrance Day",
+            "Christmas Day",
+            "Boxing Day"
+          ]
+        }
+      }
+    },
+    "17": {
+      "title": "ANNUAL VACATION",
+      "sections": {
+        "17.1": {
+          "title": "Annual Vacation",
+          "content": "Instructional staff shall be entitled to annual vacation of forty-four (44) workdays per calendar year, earned on the basis of three and two-thirds (3⅔) workdays per calendar month in which at least ten (10) workdays' pay at straight-time rates has been received.",
+          "additional_entitlement": "Upon reaching the twentieth (20th) annual vacation year, the employee shall be entitled to an additional five (5) workdays' vacation."
+        },
+        "17.5": {
+          "title": "Vacation Scheduling",
+          "content": "Vacations shall be granted on the basis of service seniority within a classification series in the work unit. All employees shall be allowed to take at least four (4) weeks of their vacation entitlement during the period of May 1st to September 30th (prime time vacation period)."
+        }
+      }
+    },
+    "18": {
+      "title": "SICK LEAVE, SHORT AND LONG-TERM DISABILITY",
+      "sections": {
+        "18.2": {
+          "title": "Sick Leave (Short-Term Disability Qualifying Period)",
+          "entitlement": "Eligible employees who are unable to work because of illness or injury are entitled to thirty (30) calendar days coverage at full pay, equivalent to the qualifying period."
+        },
+        "18.3": {
+          "title": "Long-Term Disability",
+          "content": "An employee in receipt of long-term disability benefits shall continue to be covered by the College Pension Plan, group life, extended health, dental and medical plans."
+        }
+      }
+    },
+    "19": {
+      "title": "SPECIAL AND OTHER LEAVES",
+      "sections": {
+        "19.1": {
+          "title": "Bereavement Leave",
+          "content": "In the case of bereavement in the immediate family an employee shall be entitled to special leave, at their regular rate of pay, from the date of death to and including the day of the funeral with allowance for return travelling time. Such leave shall normally not exceed five (5) workdays.",
+          "immediate_family": [
+            "parent",
+            "spouse", 
+            "child",
+            "brother",
+            "sister",
+            "father-in-law",
+            "mother-in-law",
+            "any other relative permanently residing in the employee's household"
+          ],
+          "extended_family": "One (1) day for grandparent, grandchild, son-in-law, daughter-in-law, brother-in-law or sister-in-law funeral attendance."
+        },
+        "19.2": {
+          "title": "Special Leave",
+          "leave_types": {
+            "marriage_of_employee": "3 days",
+            "attend_wedding_of_employees_child": "1 day",
+            "birth_of_employees_child": "1 day", 
+            "adoption_of_employees_child": "3 days",
+            "serious_household_emergency": "1 day",
+            "moving_household_furniture": "1 day",
+            "citizenship_hearing": "1 day",
+            "funeral_as_pallbearer": "½ day",
+            "court_appearance_for_employees_child": "1 day"
+          }
+        },
+        "19.3": {
+          "title": "Family Illness",
+          "content": "An employee is entitled to use up to a maximum of five (5) days paid leave at any one time for the purpose of looking after an ill dependent child or spouse when no one else can provide for their needs."
+        }
+      }
+    },
+    "23": {
+      "title": "HEALTH AND WELFARE",
+      "sections": {
+        "23.1": {
+          "title": "Basic Medical Insurance", 
+          "content": "All regular employees shall be covered by the Medical Plan. The Employer shall pay one hundred percent (100%) of the regular premium."
+        },
+        "23.2": {
+          "title": "Extended Health Care Plan",
+          "content": "The Employer shall pay the monthly premium for regular employees entitled to coverage under a mutually acceptable Extended Health Care Plan."
+        },
+        "23.3": {
+          "title": "Dental Plan",
+          "coverage": {
+            "part_a": "100% coverage",
+            "part_b": "60% coverage", 
+            "part_c": "50% coverage"
+          },
+          "orthodontic": "Lifetime maximum payment of $2,300 after twelve (12) months' participation"
+        },
+        "23.4": {
+          "title": "Group Life and Accidental Death and Dismemberment",
+          "content": "The Employer shall provide group life plan with benefits equivalent to triple an employee's annual salary. The Employer shall pay the entire premium."
+        }
+      }
+    },
+    "25": {
+      "title": "PAYMENT OF WAGES AND ALLOWANCES",
+      "sections": {
+        "25.3": {
+          "title": "Rates of Pay",
+          "increases": {
+            "date_of_ratification": "2.0%",
+            "april_1_2020": "2.0%", 
+            "april_1_2021": "2.0%"
+          }
+        },
+        "25.4": {
+          "title": "Vehicle Allowance",
+          "rates": {
+            "date_of_ratification": "49¢ per kilometre",
+            "april_1_2020": "50¢ per kilometre",
+            "april_1_2021": "51¢ per kilometre"
+          }
+        },
+        "25.5": {
+          "title": "Meals, Lodging and Travel Allowances",
+          "meal_allowances_ratification": {
+            "breakfast": "$10.77 (travel prior to 7:00 a.m.)",
+            "lunch": "$13.46 (travel between 11:00 a.m. and 1:00 p.m.)",
+            "dinner": "$23.69 (travel after 6:00 p.m.)"
+          },
+          "meal_allowances_2020": {
+            "breakfast": "$10.99",
+            "lunch": "$13.73", 
+            "dinner": "$24.16"
+          },
+          "meal_allowances_2021": {
+            "breakfast": "$11.20",
+            "lunch": "$14.00",
+            "dinner": "$24.64"
+          }
+        },
+        "25.14": {
+          "title": "Increments for Instructional Staff",
+          "initial_placement_criteria": {
+            "two_year_diploma": "Step BFA 11",
+            "bachelors_degree": "Step BFA 10",
+            "post_graduate_certification": "Step BFA 9",
+            "teaching_certificate_bonus": "One additional increment if not already at Step BFA 9"
+          },
+          "experience_credits": {
+            "instructional_experience": "One (1) step per year",
+            "related_work_experience": "One (1) step per two (2) years"
+          }
+        }
+      }
+    },
+    "31": {
+      "title": "FACULTY WORKLOAD",
+      "sections": {
+        "31.2": {
+          "title": "Definitions",
+          "definitions": {
+            "contact_hour": "One hour scheduled by the College during which a faculty member is working with students in classroom related activities which further the attainment of course objectives",
+            "class_size": "The number of students registered in a course or program as reported by the Registrar's office",
+            "workweek": "Monday to Friday inclusive"
+          }
+        },
+        "31.3": {
+          "title": "Instructional Workload",
+          "workload_maxima": {
+            "ccp_eswk_fundamental": {
+              "contact_hours": 25,
+              "class_size": 16,
+              "annual_hours": 900
+            },
+            "ccp_eswk_developmental": {
+              "contact_hours": 25,
+              "class_size": 20,
+              "annual_hours": 900
+            },
+            "business_administration": {
+              "contact_hours": 15,
+              "class_size": 40,
+              "annual_hours": 450
+            },
+            "trades": {
+              "contact_hours": 27.7,
+              "class_size": 18,
+              "annual_hours": 1025
+            },
+            "health_care_assistant": {
+              "contact_hours": 25,
+              "class_size": 25,
+              "annual_hours": 1025
+            },
+            "lpn_classroom_lab": {
+              "contact_hours": 20,
+              "class_size": 24,
+              "annual_hours": 900
+            }
+          }
+        },
+        "31.5": {
+          "title": "Non-Instructional Duty Days",
+          "content": "Instructional staff shall be scheduled ten (10) non-instructional days during the calendar year to maintain the currency, relevance, transferability and accreditation of their assigned courses."
+        },
+        "31.6": {
+          "title": "Preparation Time",
+          "content": "Any new regular instructor shall be given two (2) weeks' preparation time prior to the commencement of classes. Any new non-regular instructor shall have reasonable time for preparation."
+        }
+      }
+    },
+    "32": {
+      "title": "PROFESSIONAL DEVELOPMENT",
+      "sections": {
+        "32.4": {
+          "title": "Allocation",
+          "content": "The College shall allocate at the beginning of each fiscal year the amount of fifteen thousand dollars ($15,000) for the Professional Development Fund."
+        },
+        "32.10": {
+          "title": "Professional Development Leave",
+          "content": "All regular instructors shall be scheduled for ten (10) professional development days during the calendar year (January 1st - December 31st)."
+        }
+      }
+    }
+  },
+  "appendices": {
+    "appendix_1": {
+      "title": "BCGEU Instructors Salary Scale",
+      "salary_steps": {
+        "step_1": {
+          "ratification_to_mar_2020": 95134,
+          "apr_2020_to_mar_2021": 97037,
+          "apr_2021_to_mar_2022": 98978,
+          "stipend_ratification": 1903,
+          "stipend_2020": 1941,
+          "stipend_2021": 1980
+        },
+        "step_11": {
+          "ratification_to_mar_2020": 59204,
+          "apr_2020_to_mar_2021": 60388,
+          "apr_2021_to_mar_2022": 61596,
+          "stipend_ratification": 1184,
+          "stipend_2020": 1208,
+          "stipend_2021": 1232
+        }
+      },
+      "special_allowance": {
+        "program_coordinator": {
+          "ratification_to_mar_2020": 130.01,
+          "apr_2020_to_mar_2021": 132.61,
+          "apr_2021_to_mar_2022": 135.26
+        }
+      }
+    }
+  },
+  "letters_of_agreement": {
+    "loa_1": {
+      "title": "Mining and Exploration Program Development",
+      "content": "Establishes terms for intensive, accelerated programs in Mining and Exploration (Field Assistant Program, Camp Manager Program) with specific workload and evaluation provisions."
+    },
+    "loa_6": {
+      "title": "Service Improvement Fund",
+      "fund_amounts": {
+        "year_1": 18909,
+        "year_2": 38255,
+        "year_3": 58037
+      },
+      "purpose": "To encourage and support innovation in instruction that will tangibly improve services to students at the College."
+    }
+  },
+  "geographic_locations": [
+    "Queen Charlotte City",
+    "Prince Rupert",
+    "Terrace", 
+    "Kitimat",
+    "Hazelton",
+    "Smithers",
+    "Houston",
+    "Stewart",
+    "Nass Valley"
+  ],
+  "citation_format": {
+    "article": "Article {number}: {title}",
+    "section": "Article {article_number}, Section {section_number}: {section_title}",
+    "clause": "Clause {clause_number}",
+    "appendix": "Appendix {number}: {title}",
+    "loa": "Letter of Agreement {number}: {title}"
+  }
+}
