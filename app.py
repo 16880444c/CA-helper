@@ -237,6 +237,10 @@ def main():
         if st.button("Clear Conversation"):
             st.session_state.messages = []
             st.rerun()
+            
+        if st.button("🆕 New Topic"):
+            st.session_state.messages = []
+            st.rerun()
     
     # Load agreements
     if not st.session_state.agreements_loaded:
