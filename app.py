@@ -135,7 +135,15 @@ def main():
     # Sidebar for API key and settings
     with st.sidebar:
         st.header("Configuration")
-        api_key = st.text_input("OpenAI API Key", type="password")
+        
+        # Try to get API key from secrets first, then from user input
+        api_key = None
+        try:
+            api_key = st.secrets["OPENAI_API_KEY"]
+            st.success("✅ API key loaded from secrets")
+        except:
+            api_key = st.text_input("OpenAI API Key", type="password", 
+                                   help="Enter your OpenAI API key or add it to Streamlit secrets")
         
         st.markdown("---")
         st.header("About")
