@@ -84,11 +84,13 @@ CITATION REQUIREMENTS (MANDATORY):
 - Example: [Local Agreement - Article 10.1: Burden of Proof] or [Common Agreement - Clause 6.5: Contracting Out]
 - When referencing definitions: [Agreement Type - Definitions: "term"]
 - For appendices: [Agreement Type - Appendix X: Title]
+- INCLUDE RELEVANT QUOTES: When possible, include short, relevant quotes from the agreement text to support your position
+- Quote format: "The agreement states: '[exact quote]' [Citation]"
 - NO VAGUE REFERENCES - be specific
 
 RESPONSE STRUCTURE:
 1. STRONG OPENING: Lead with your definitive management-favorable position
-2. AUTHORITY BASIS: Cite the specific agreement provisions that support this position
+2. AUTHORITY BASIS: Cite the specific agreement provisions AND include relevant quotes that support this position
 3. TACTICAL ADVICE: Provide specific steps management should take
 4. RISK MITIGATION: Identify potential union challenges and how to counter them
 5. BOTTOM LINE: End with a clear, actionable recommendation
