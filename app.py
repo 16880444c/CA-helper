@@ -86,15 +86,60 @@ The agreements contain the complete text and you should reference them accuratel
 
     return system_prompt
 
-def format_agreements_for_context(collective_agreement, common_agreement):
-    """Format the agreements as context for the AI"""
+def create_essential_context(collective_agreement, common_agreement):
+    """Create context with essential agreement information"""
+    
+    # Get basic metadata
+    collective_title = collective_agreement['agreement_metadata']['title']
+    common_title = common_agreement['agreement_metadata']['title']
+    
     context = f"""
-COLLECTIVE AGREEMENT DATA:
-{json.dumps(collective_agreement, indent=2)}
+COLLECTIVE AGREEMENTS AVAILABLE:
 
-COMMON AGREEMENT DATA:
-{json.dumps(common_agreement, indent=2)}
+LOCAL AGREEMENT: "{collective_title}"
+- Effective: {collective_agreement['agreement_metadata']['effective_dates']['start']} to {collective_agreement['agreement_metadata']['effective_dates']['end']}
+- Parties: {collective_agreement['agreement_metadata']['parties']['employer']} and {collective_agreement['agreement_metadata']['parties']['union']}
+
+COMMON AGREEMENT: "{common_title}" 
+- Effective: {common_agreement['agreement_metadata']['effective_dates']['start']} to {common_agreement['agreement_metadata']['effective_dates']['end']}
+- Parties: {common_agreement['agreement_metadata']['parties']['employers']} and {common_agreement['agreement_metadata']['parties']['union']}
+
+KEY DEFINITIONS FROM LOCAL AGREEMENT:
+{json.dumps(collective_agreement.get('definitions', {}), indent=2)}
+
+KEY DEFINITIONS FROM COMMON AGREEMENT:
+{json.dumps(common_agreement.get('definitions', {}), indent=2)}
+
+ARTICLE STRUCTURE - LOCAL AGREEMENT:
 """
+    
+    # Add article titles and basic structure from local agreement
+    if 'articles' in collective_agreement:
+        for article_num, article_data in collective_agreement['articles'].items():
+            context += f"Article {article_num}: {article_data.get('title', 'No Title')}\n"
+            if 'sections' in article_data:
+                for section_num, section_data in article_data['sections'].items():
+                    context += f"  - Section {section_num}: {section_data.get('title', 'No Title')}\n"
+    
+    context += "\nARTICLE STRUCTURE - COMMON AGREEMENT:\n"
+    
+    # Add article titles and basic structure from common agreement
+    if 'articles' in common_agreement:
+        for article_num, article_data in common_agreement['articles'].items():
+            context += f"Article {article_num}: {article_data.get('title', 'No Title')}\n"
+            if 'sections' in article_data:
+                for section_num, section_data in article_data['sections'].items():
+                    context += f"  - Section {section_num}: {section_data.get('title', 'No Title')}\n"
+    
+    context += """
+
+IMPORTANT: You have access to the complete content of both agreements. When responding to questions:
+1. Reference specific articles, sections, and clauses accurately
+2. Provide proper citations in the format [Agreement Type - Article X.X: Title]
+3. Focus on management rights and authority
+4. If you need specific content from an article, refer to it by number and title
+"""
+    
     return context
 
 def get_ai_response(user_message, collective_agreement, common_agreement, api_key):
@@ -103,29 +148,33 @@ def get_ai_response(user_message, collective_agreement, common_agreement, api_ke
         client = openai.OpenAI(api_key=api_key)
         
         system_prompt = create_system_prompt(collective_agreement, common_agreement)
-        agreement_context = format_agreements_for_context(collective_agreement, common_agreement)
+        # Use essential context with structure overview
+        agreement_context = create_essential_context(collective_agreement, common_agreement)
         
         # Prepare messages for the API
         messages = [
             {"role": "system", "content": system_prompt + "\n\n" + agreement_context}
         ]
         
-        # Add conversation history
-        for msg in st.session_state.messages:
+        # Add conversation history (limit to last 6 exchanges to save tokens)
+        recent_messages = st.session_state.messages[-12:] if len(st.session_state.messages) > 12 else st.session_state.messages
+        for msg in recent_messages:
             messages.append({"role": msg["role"], "content": msg["content"]})
         
         # Add current user message
         messages.append({"role": "user", "content": user_message})
         
         response = client.chat.completions.create(
-            model="gpt-4",  # or "gpt-3.5-turbo" for cost savings
+            model="gpt-3.5-turbo",  # Using 3.5-turbo for better rate limits
             messages=messages,
-            max_tokens=1500,
+            max_tokens=1000,  
             temperature=0.3
         )
         
         return response.choices[0].message.content
         
+    except openai.RateLimitError as e:
+        return "⚠️ **Rate limit exceeded.** Please wait a moment and try again. Consider upgrading your OpenAI plan for higher limits."
     except Exception as e:
         return f"Error getting AI response: {str(e)}"
 
