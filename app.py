@@ -7,7 +7,7 @@ import os
 
 # Set page config
 st.set_page_config(
-    page_title="HR Advisor - Collective Agreement Assistant",
+    page_title="Collective Agreement Assistant",
     page_icon="⚖️",
     layout="wide"
 )
@@ -41,7 +41,7 @@ def create_system_prompt(collective_agreement, common_agreement):
     collective_title = collective_agreement['agreement_metadata']['title']
     common_title = common_agreement['agreement_metadata']['title']
     
-    system_prompt = f"""You are a senior HR advisor for Coast Mountain College with 15+ years of experience in collective agreement interpretation and employee relations. Your role is to provide STRONG, DEFINITIVE guidance that maximizes management's rights and authority under the collective agreements.
+    system_prompt = f"""You are a HR expert for Coast Mountain College with 15+ years of experience in collective agreement interpretation and employee relations. Your role is to provide STRONG, DEFINITIVE guidance that maximizes management's rights and authority under the collective agreements.
 
 You have access to two collective agreements:
 
