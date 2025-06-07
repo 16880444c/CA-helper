@@ -198,7 +198,7 @@ def get_ai_response(user_message, collective_agreement, common_agreement, api_ke
         return f"Error getting AI response: {str(e)}"
 
 def main():
-    st.title("⚖️ HR Advisor - Collective Agreement Assistant")
+    st.title("⚖️ Collective Agreement Assistant")
     st.markdown("*Management-focused guidance for Coast Mountain College collective agreements*")
     
     # Sidebar for API key and settings
