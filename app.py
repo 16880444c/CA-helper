@@ -21,17 +21,57 @@ if 'agreements_loaded' not in st.session_state:
 
 def load_agreements():
     """Load the collective agreements from JSON files"""
+    # Debug: Show current working directory and files
+    current_dir = os.getcwd()
+    files_in_dir = os.listdir(current_dir)
+    
+    st.write(f"**Debug Info:**")
+    st.write(f"Current working directory: `{current_dir}`")
+    st.write(f"Files in directory: {files_in_dir}")
+    
+    # Check if files exist
+    local_exists = os.path.exists('complete_local.json')
+    common_exists = os.path.exists('complete_common.json')
+    
+    st.write(f"complete_local.json exists: {local_exists}")
+    st.write(f"complete_common.json exists: {common_exists}")
+    
     try:
-        # Updated to use the new JSON file names
-        with open('complete_local.json', 'r') as f:
+        # Try to read the files
+        with open('complete_local.json', 'r', encoding='utf-8') as f:
             collective_agreement = json.load(f)
         
-        with open('complete_common.json', 'r') as f:
+        with open('complete_common.json', 'r', encoding='utf-8') as f:
             common_agreement = json.load(f)
         
+        st.success("✅ Files loaded successfully from directory!")
         return collective_agreement, common_agreement
-    except FileNotFoundError:
-        st.error("Agreement files not found. Please ensure both JSON files are uploaded.")
+        
+    except FileNotFoundError as e:
+        st.error(f"FileNotFoundError: {str(e)}")
+        
+        # Show file uploader as alternative
+        st.markdown("### Alternative: Upload Files")
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            local_file = st.file_uploader("Upload complete_local.json", type="json", key="local")
+        with col2:
+            common_file = st.file_uploader("Upload complete_common.json", type="json", key="common")
+        
+        if local_file and common_file:
+            try:
+                collective_agreement = json.load(local_file)
+                common_agreement = json.load(common_file)
+                st.success("✅ Files loaded successfully from upload!")
+                return collective_agreement, common_agreement
+            except Exception as e:
+                st.error(f"Error loading uploaded files: {str(e)}")
+                return None, None
+        
+        return None, None
+    except Exception as e:
+        st.error(f"Unexpected error: {str(e)}")
         return None, None
 
 def create_system_prompt(collective_agreement, common_agreement):
