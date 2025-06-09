@@ -22,11 +22,11 @@ if 'agreements_loaded' not in st.session_state:
 def load_agreements():
     """Load the collective agreements from JSON files"""
     try:
-        # You'll need to upload these JSON files to your Streamlit app
-        with open('collective_agreement_json.json', 'r') as f:
+        # Updated to use the new JSON file names
+        with open('complete_local.json', 'r') as f:
             collective_agreement = json.load(f)
         
-        with open('common_agreement_json.json', 'r') as f:
+        with open('complete_common.json', 'r') as f:
             common_agreement = json.load(f)
         
         return collective_agreement, common_agreement
@@ -236,10 +236,6 @@ def main():
         **Citations**: All responses include specific agreement references
         """)
         
-        if st.button("Clear Conversation"):
-            st.session_state.messages = []
-            st.rerun()
-            
         if st.button("🆕 New Topic"):
             st.session_state.messages = []
             st.rerun()
