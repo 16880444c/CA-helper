@@ -44,6 +44,15 @@ def load_agreements():
         with open('complete_common.json', 'r', encoding='utf-8') as f:
             common_agreement = json.load(f)
         
+        # Check if local agreement is complete
+        local_articles = collective_agreement.get('articles', {})
+        if len(local_articles) < 30:  # Should have 35 articles
+            st.warning(f"⚠️ Local agreement appears incomplete - only {len(local_articles)} articles found. Expected 35.")
+            st.write("**Troubleshooting Options:**")
+            st.write("1. Check if complete_local.json file contains all 35 articles")
+            st.write("2. Try uploading the files manually using the file uploader below")
+            st.write("3. Verify the JSON file wasn't truncated during saving")
+        
         st.success("✅ Files loaded successfully from directory!")
         return collective_agreement, common_agreement
         
@@ -63,7 +72,15 @@ def load_agreements():
             try:
                 collective_agreement = json.load(local_file)
                 common_agreement = json.load(common_file)
-                st.success("✅ Files loaded successfully from upload!")
+                
+                # Verify completeness of uploaded files
+                local_articles = collective_agreement.get('articles', {})
+                if len(local_articles) >= 30:
+                    st.success("✅ Files loaded successfully from upload!")
+                    st.success(f"✅ Local agreement appears complete with {len(local_articles)} articles")
+                else:
+                    st.warning(f"⚠️ Uploaded local agreement may be incomplete - only {len(local_articles)} articles found")
+                
                 return collective_agreement, common_agreement
             except Exception as e:
                 st.error(f"Error loading uploaded files: {str(e)}")
@@ -594,19 +611,43 @@ def main():
                 st.write(f"**Debug - Local Article Keys Found:** {sorted(local_keys)}")
                 st.write(f"**Debug - Common Article Keys Found:** {sorted(common_keys)}")
                 
-                # Test: Let's specifically look for Article 17
+                # SPECIFIC TEST for Article 17
                 if '17' in local_articles:
                     article_17 = local_articles['17']
-                    st.write(f"**Article 17 Found:** Title = {article_17.get('title', 'No title')}")
+                    st.write(f"**✅ Article 17 Found:** {article_17.get('title', 'No title')}")
+                    
                     if 'sections' in article_17:
                         sections = article_17['sections']
                         st.write(f"**Article 17 Sections:** {list(sections.keys())}")
+                        
                         if '17.8' in sections:
-                            st.write(f"**Article 17.8 Found:** {sections['17.8'].get('title', 'No title')}")
+                            section_17_8 = sections['17.8']
+                            st.write(f"**✅ Article 17.8 Found:** {section_17_8.get('title', 'No title')}")
+                            
+                            # Show the actual content
+                            if 'subsections' in section_17_8:
+                                subsection_a = section_17_8['subsections'].get('a', 'Not found')
+                                st.write(f"**Article 17.8(a) Content:** {subsection_a[:200]}...")
+                            else:
+                                st.write("**Article 17.8 subsections not found**")
                         else:
-                            st.write("**Article 17.8 NOT found in sections**")
+                            st.write("**❌ Article 17.8 NOT found in sections**")
+                            st.write(f"**Available sections:** {list(sections.keys())}")
+                    else:
+                        st.write("**❌ No sections found in Article 17**")
                 else:
-                    st.write("**Article 17 NOT found in local articles**")
+                    st.write("**❌ Article 17 NOT found in local articles**")
+                    
+                # Also check if the file is being truncated
+                article_keys_numeric = [int(k) for k in local_keys if k.isdigit()]
+                if article_keys_numeric:
+                    max_article = max(article_keys_numeric)
+                    min_article = min(article_keys_numeric)
+                    st.write(f"**Article range:** {min_article} to {max_article}")
+                    
+                    if max_article < 35:
+                        st.error(f"**⚠️ INCOMPLETE FILE: Only articles {min_article}-{max_article} found. Missing articles {max_article+1}-35**")
+                        st.write("**Check if your complete_local.json file was truncated during saving/transfer**")
                 
                 local_nums = []
                 common_nums = []
