@@ -4,6 +4,8 @@ import openai
 from datetime import datetime
 import re
 import os
+from fuzzywuzzy import fuzz
+from fuzzywuzzy import process
 
 # Set page config
 st.set_page_config(
@@ -74,51 +76,175 @@ def load_agreements():
         st.error(f"Unexpected error: {str(e)}")
         return None, None
 
-def identify_relevant_articles(user_message, collective_agreement, common_agreement):
-    """Identify which articles are most relevant to the user's question"""
+def build_searchable_index(agreement, agreement_type):
+    """Build a searchable index of all content in the agreement"""
+    index = {}
     
-    # Keywords mapped to common article topics
-    keyword_mappings = {
-        'discipline': ['discipline', 'dismissal', 'termination', 'misconduct', 'suspension', 'just cause'],
-        'grievance': ['grievance', 'complaint', 'dispute', 'arbitration', 'mediation'],
-        'layoff': ['layoff', 'reduction', 'redundancy', 'workforce reduction', 'downsizing'],
-        'workload': ['workload', 'teaching load', 'assignment', 'scheduling', 'hours'],
-        'leave': ['leave', 'vacation', 'sick', 'maternity', 'sabbatical', 'personal'],
-        'salary': ['salary', 'wage', 'pay', 'compensation', 'benefits', 'pension'],
-        'evaluation': ['evaluation', 'performance', 'review', 'assessment', 'appraisal'],
-        'contract': ['contract', 'appointment', 'probation', 'tenure', 'employment'],
-        'union': ['union', 'steward', 'representative', 'membership'],
-        'management': ['management', 'employer', 'administration', 'rights', 'authority']
-    }
+    if 'articles' not in agreement:
+        return index
+    
+    articles = agreement['articles']
+    
+    for article_num, article_data in articles.items():
+        if isinstance(article_data, dict):
+            title = article_data.get('title', '').lower()
+            content_parts = []
+            
+            # Add title
+            content_parts.append(title)
+            
+            # Add article-level content
+            if 'content' in article_data:
+                content_parts.append(str(article_data['content']).lower())
+            elif 'text' in article_data:
+                content_parts.append(str(article_data['text']).lower())
+            
+            # Add sections content
+            if 'sections' in article_data:
+                sections = article_data['sections']
+                if isinstance(sections, dict):
+                    for section_num, section_data in sections.items():
+                        if isinstance(section_data, dict):
+                            if 'title' in section_data:
+                                content_parts.append(str(section_data['title']).lower())
+                            if 'content' in section_data:
+                                content_parts.append(str(section_data['content']).lower())
+                            elif 'text' in section_data:
+                                content_parts.append(str(section_data['text']).lower())
+                            
+                            # Add subsections
+                            if 'subsections' in section_data:
+                                subsections = section_data['subsections']
+                                if isinstance(subsections, dict):
+                                    for subsection_num, subsection_data in subsections.items():
+                                        if isinstance(subsection_data, dict):
+                                            if 'title' in subsection_data:
+                                                content_parts.append(str(subsection_data['title']).lower())
+                                            if 'content' in subsection_data:
+                                                content_parts.append(str(subsection_data['content']).lower())
+                                            elif 'text' in subsection_data:
+                                                content_parts.append(str(subsection_data['text']).lower())
+                                        elif isinstance(subsection_data, str):
+                                            content_parts.append(subsection_data.lower())
+                        elif isinstance(section_data, str):
+                            content_parts.append(section_data.lower())
+            
+            # Combine all content
+            full_content = ' '.join(content_parts)
+            
+            index[article_num] = {
+                'title': title,
+                'content': full_content,
+                'agreement_type': agreement_type
+            }
+    
+    return index
+
+def identify_relevant_articles_improved(user_message, collective_agreement, common_agreement):
+    """Improved article identification using content search and fuzzy matching"""
+    
+    # Build searchable indexes
+    local_index = build_searchable_index(collective_agreement, 'local')
+    common_index = build_searchable_index(common_agreement, 'common')
     
     user_message_lower = user_message.lower()
     relevant_articles = set()
     
-    # Find articles based on keyword matching
-    for topic, keywords in keyword_mappings.items():
-        if any(keyword in user_message_lower for keyword in keywords):
-            # Add common articles for each topic
-            if topic == 'discipline':
-                relevant_articles.update(['7', '8', '9'])  # Common discipline articles
-            elif topic == 'grievance':
-                relevant_articles.update(['5', '6'])  # Common grievance articles
-            elif topic == 'layoff':
-                relevant_articles.update(['11', '12'])  # Common layoff articles
-            elif topic == 'workload':
-                relevant_articles.update(['13', '14', '15'])  # Common workload articles
-            elif topic == 'leave':
-                relevant_articles.update(['16', '17', '18', '19'])  # Common leave articles
-            elif topic == 'salary':
-                relevant_articles.update(['20', '21', '22'])  # Common salary articles
-    
-    # Always include these essential management rights articles
-    essential_articles = ['1', '2', '3', '4']  # Typically recognition, management rights, etc.
-    relevant_articles.update(essential_articles)
-    
-    # Also search for direct article number references in the question
+    # Search for direct article number references
     article_pattern = r'article\s*(\d+(?:\.\d+)?)'
     matches = re.findall(article_pattern, user_message_lower)
     relevant_articles.update(matches)
+    
+    # Keyword-based scoring for each article
+    search_terms = user_message_lower.split()
+    
+    # Score articles based on content relevance
+    article_scores = {}
+    
+    # Search local agreement
+    for article_num, article_info in local_index.items():
+        score = 0
+        for term in search_terms:
+            if len(term) > 2:  # Only consider terms longer than 2 characters
+                # Title gets higher weight
+                if term in article_info['title']:
+                    score += 10
+                # Content search
+                score += article_info['content'].count(term) * 2
+                
+                # Fuzzy matching for titles
+                if fuzz.partial_ratio(term, article_info['title']) > 70:
+                    score += 5
+        
+        if score > 0:
+            article_scores[f"local_{article_num}"] = score
+    
+    # Search common agreement
+    for article_num, article_info in common_index.items():
+        score = 0
+        for term in search_terms:
+            if len(term) > 2:
+                if term in article_info['title']:
+                    score += 10
+                score += article_info['content'].count(term) * 2
+                
+                if fuzz.partial_ratio(term, article_info['title']) > 70:
+                    score += 5
+        
+        if score > 0:
+            article_scores[f"common_{article_num}"] = score
+    
+    # Get top scoring articles
+    top_articles = sorted(article_scores.items(), key=lambda x: x[1], reverse=True)[:10]
+    
+    for article_key, score in top_articles:
+        agreement_type, article_num = article_key.split('_', 1)
+        relevant_articles.add(article_num)
+    
+    # Enhanced keyword mappings based on actual agreement content
+    enhanced_mappings = {
+        'discipline': ['10', '11', '30'],  # Based on actual articles
+        'dismissal': ['10'],
+        'suspension': ['10'],
+        'grievance': ['8'],
+        'arbitration': ['9'],
+        'layoff': ['11', '13'],
+        'recall': ['11'],
+        'seniority': ['11'],
+        'workload': ['31'],
+        'vacation': ['17'],
+        'leave': ['19', '20'],  # Special and other leaves, parental leave
+        'sick': ['18'],
+        'benefits': ['23', '9'],  # Local and common health and welfare
+        'salary': ['25', '12'],  # Local payment and common salaries
+        'overtime': ['15'],
+        'holidays': ['16'],
+        'evaluation': ['33'],
+        'professional development': ['32'],
+        'harassment': ['1', '2'],  # Local and common harassment articles
+        'union': ['2', '3'],  # Union recognition and security
+        'hours': ['14'],
+        'safety': ['21'],
+        'pension': ['10'],  # Common agreement pensions
+        'copyright': ['5'],  # Common agreement
+        'job security': ['6', '13'],  # Common and local
+        'technological change': ['22'],
+        'classification': ['26'],
+        'reclassification': ['26'],
+        'regularization': ['26', '6'],
+        'contracting out': ['6'],  # Common agreement
+        'international education': ['14'],  # Common agreement
+        'early retirement': ['11', '25'],  # Common and local
+    }
+    
+    # Apply enhanced keyword mappings
+    for topic, article_nums in enhanced_mappings.items():
+        if any(keyword in user_message_lower for keyword in topic.split()):
+            relevant_articles.update(article_nums)
+    
+    # Always include essential articles for context
+    essential_articles = ['1', '2', '6', '8', '10']  # Core rights and procedures
+    relevant_articles.update(essential_articles)
     
     return list(relevant_articles)
 
@@ -176,6 +302,10 @@ def extract_article_content(agreement, article_num):
                                     content += f"    {subsection_data['content']}\n\n"
                                 elif 'text' in subsection_data:
                                     content += f"    {subsection_data['text']}\n\n"
+                            elif isinstance(subsection_data, str):
+                                content += f"    {subsection_num}: {subsection_data}\n\n"
+                elif isinstance(section_data, str):
+                    content += f"  {section_num}: {section_data}\n\n"
     elif isinstance(article_data, str):
         content += f"Article {article_num}: {article_data}\n\n"
     
@@ -265,8 +395,8 @@ Remember: You are not a neutral arbitrator. You are MANAGEMENT'S advisor. Your j
 def create_targeted_context(user_message, collective_agreement, common_agreement):
     """Create context with relevant content based on the user's question"""
     
-    # Identify relevant articles
-    relevant_articles = identify_relevant_articles(user_message, collective_agreement, common_agreement)
+    # Use improved article identification
+    relevant_articles = identify_relevant_articles_improved(user_message, collective_agreement, common_agreement)
     
     # Basic metadata and structure
     collective_metadata = collective_agreement.get('agreement_metadata', {})
@@ -369,9 +499,9 @@ def get_ai_response(user_message, collective_agreement, common_agreement, api_ke
         messages.append({"role": "user", "content": user_message})
         
         response = client.chat.completions.create(
-            model="gpt-4o-mini",  # Using gpt-4o-mini for better reasoning with longer context
+            model="gpt-4o",  # Using gpt-4o for better reasoning
             messages=messages,
-            max_tokens=1500,  # Increased for more detailed responses
+            max_tokens=2000,  # Increased for more detailed responses
             temperature=0.3
         )
         
@@ -417,7 +547,12 @@ def main():
         - Coast Mountain College Collective Agreement (2019-2022)
         - Common Agreement (2022-2025)
         
-        **Smart Content Loading**: Only loads relevant articles based on your question
+        **Improved Features**:
+        - Smart content search with fuzzy matching
+        - Enhanced keyword mapping based on actual agreement structure
+        - Better article relevance scoring
+        - More comprehensive context loading
+        
         **Perspective**: Management rights and authority
         **Citations**: All responses include specific agreement references
         """)
