@@ -267,87 +267,215 @@ def get_article_content(article_ref, collective_agreement, common_agreement):
     
     return None
 
+def search_for_relevant_content(user_message, collective_agreement, common_agreement):
+    """Comprehensive search that finds relevant content by analyzing all articles and content"""
+    
+    relevant_articles = {}
+    query_lower = user_message.lower()
+    query_words = set(query_lower.split())
+    
+    # Extract meaningful keywords from the query (remove common words)
+    stop_words = {'a', 'an', 'and', 'are', 'as', 'at', 'be', 'by', 'for', 'from', 'has', 'he', 
+                  'in', 'is', 'it', 'its', 'of', 'on', 'that', 'the', 'to', 'was', 'will', 'with',
+                  'can', 'could', 'should', 'would', 'have', 'had', 'this', 'they', 'them', 'their',
+                  'what', 'when', 'where', 'how', 'why', 'who', 'which', 'does', 'do', 'did'}
+    
+    meaningful_keywords = query_words - stop_words
+    
+    def search_in_content(content, keywords):
+        """Search for keywords in content recursively"""
+        if isinstance(content, str):
+            content_lower = content.lower()
+            return any(keyword in content_lower for keyword in keywords)
+        elif isinstance(content, dict):
+            return any(search_in_content(value, keywords) for value in content.values())
+        elif isinstance(content, list):
+            return any(search_in_content(item, keywords) for item in content)
+        return False
+    
+    def calculate_relevance_score(article_data, keywords):
+        """Calculate how relevant an article is to the query"""
+        score = 0
+        
+        # Check title relevance (higher weight)
+        title = article_data.get('title', '').lower()
+        for keyword in keywords:
+            if keyword in title:
+                score += 3
+        
+        # Check content relevance
+        if search_in_content(article_data, keywords):
+            score += 1
+        
+        # Boost score for exact phrase matches
+        query_phrases = [query_lower]
+        if len(query_lower.split()) > 1:
+            # Create 2-word and 3-word phrases
+            words = query_lower.split()
+            for i in range(len(words) - 1):
+                query_phrases.append(' '.join(words[i:i+2]))
+                if i < len(words) - 2:
+                    query_phrases.append(' '.join(words[i:i+3]))
+        
+        article_text = json.dumps(article_data, ensure_ascii=False).lower()
+        for phrase in query_phrases:
+            if phrase in article_text:
+                score += 5
+        
+        return score
+    
+    # Search through all articles in both agreements
+    article_scores = []
+    
+    for agreement_name, agreement in [('Local', collective_agreement), ('Common', common_agreement)]:
+        articles = agreement.get('articles', {})
+        for article_num, article_data in articles.items():
+            if isinstance(article_data, dict):
+                score = calculate_relevance_score(article_data, meaningful_keywords)
+                if score > 0:
+                    article_scores.append({
+                        'agreement': agreement_name,
+                        'article_num': article_num,
+                        'article_data': article_data,
+                        'score': score,
+                        'title': article_data.get('title', '')
+                    })
+    
+    # Sort by relevance score and take top articles
+    article_scores.sort(key=lambda x: x['score'], reverse=True)
+    
+    # Include top relevant articles (at least 3, up to 8 depending on scores)
+    min_articles = 3
+    max_articles = 8
+    
+    for i, article_info in enumerate(article_scores):
+        if i < min_articles or (i < max_articles and article_info['score'] >= 2):
+            key = f"{article_info['agreement']} Agreement - Article {article_info['article_num']}: {article_info['title']}"
+            relevant_articles[key] = article_info['article_data']
+    
+    # If we still don't have enough relevant content, add some key articles
+    if len(relevant_articles) < 2:
+        # Add employer rights and grievance procedure as they're often relevant
+        for agreement_name, agreement in [('Local', collective_agreement), ('Common', common_agreement)]:
+            articles = agreement.get('articles', {})
+            
+            # Look for employer/management rights articles
+            for article_num, article_data in articles.items():
+                if isinstance(article_data, dict):
+                    title = article_data.get('title', '').lower()
+                    if any(word in title for word in ['employer', 'management', 'rights']):
+                        key = f"{agreement_name} Agreement - Article {article_num}: {article_data.get('title', '')}"
+                        relevant_articles[key] = article_data
+                        break
+    
+    # Also search appendices for relevant content
+    for agreement_name, agreement in [('Local', collective_agreement), ('Common', common_agreement)]:
+        appendices = agreement.get('appendices', {})
+        for appendix_key, appendix_data in appendices.items():
+            if isinstance(appendix_data, dict):
+                score = calculate_relevance_score(appendix_data, meaningful_keywords)
+                if score > 2:  # Higher threshold for appendices
+                    key = f"{agreement_name} Agreement - {appendix_key}: {appendix_data.get('title', '')}"
+                    relevant_articles[key] = appendix_data
+    
+    return relevant_articles
+
 def make_multiple_api_calls(user_message, collective_agreement, common_agreement, api_key):
-    """Make multiple smaller API calls to handle large content"""
+    """Make multiple smaller API calls to handle large content with enhanced search"""
     
     try:
         client = openai.OpenAI(api_key=api_key)
         
-        # First call: Get initial analysis and identify needed articles
-        initial_prompt = f"""Based on this question: "{user_message}"
-
-Which specific articles from the Local Agreement (2019-2022) and Common Agreement (2022-2025) should I examine to provide comprehensive management-focused advice?
-
-Available Local Agreement Articles (1-35):
-{', '.join([f"Article {num}: {data.get('title', '')}" for num, data in collective_agreement.get('articles', {}).items()])}
-
-Available Common Agreement Articles:
-{', '.join([f"Article {num}: {data.get('title', '')}" for num, data in common_agreement.get('articles', {}).items()])}
-
-Respond with ONLY a list of specific article numbers in this format:
-Local: [article numbers]
-Common: [article numbers]"""
-
-        response1 = client.chat.completions.create(
-            model="gpt-4",
-            messages=[{"role": "user", "content": initial_prompt}],
-            max_tokens=300,
-            temperature=0.1
-        )
+        # Enhanced search for relevant content
+        relevant_articles = search_for_relevant_content(user_message, collective_agreement, common_agreement)
         
-        # Parse the response to get article numbers
-        article_response = response1.choices[0].message.content
+        # Create detailed content from relevant articles
+        detailed_content = "\n\nCOMPLETE RELEVANT ARTICLE CONTENT:\n"
         
-        # Second call: Get detailed response with specific articles
+        for article_key, article_data in relevant_articles.items():
+            detailed_content += f"\n=== {article_key} ===\n"
+            # Include the complete article content with better formatting
+            if isinstance(article_data, dict):
+                # Format the article content more readably
+                formatted_content = format_article_content(article_data)
+                detailed_content += formatted_content + "\n"
+        
+        # Include definitions that might be relevant
+        detailed_content += "\n\nRELEVANT DEFINITIONS:\n"
+        detailed_content += f"LOCAL AGREEMENT DEFINITIONS:\n{json.dumps(collective_agreement.get('definitions', {}), indent=2)}\n"
+        detailed_content += f"COMMON AGREEMENT DEFINITIONS:\n{json.dumps(common_agreement.get('definitions', {}), indent=2)}\n"
+        
+        # Create the system prompt and context
         system_prompt = create_system_prompt(collective_agreement, common_agreement)
-        comprehensive_context = create_comprehensive_context(collective_agreement, common_agreement)
         
-        # Add specific article content based on first response
-        detailed_content = "\n\nDETAILED ARTICLE CONTENT:\n"
-        
-        # Extract mentioned articles and add their full content
-        if "Local:" in article_response:
-            local_articles_mentioned = re.findall(r'Local:.*?(\d+(?:,\s*\d+)*)', article_response)
-            if local_articles_mentioned:
-                for article_num in local_articles_mentioned[0].split(','):
-                    article_num = article_num.strip()
-                    if article_num in collective_agreement.get('articles', {}):
-                        article_data = collective_agreement['articles'][article_num]
-                        detailed_content += f"\n=== LOCAL AGREEMENT - ARTICLE {article_num}: {article_data.get('title', '')} ===\n"
-                        detailed_content += json.dumps(article_data, indent=2)[:4000] + "\n"
-        
-        if "Common:" in article_response:
-            common_articles_mentioned = re.findall(r'Common:.*?(\d+(?:,\s*\d+)*)', article_response)
-            if common_articles_mentioned:
-                for article_num in common_articles_mentioned[0].split(','):
-                    article_num = article_num.strip()
-                    if article_num in common_agreement.get('articles', {}):
-                        article_data = common_agreement['articles'][article_num]
-                        detailed_content += f"\n=== COMMON AGREEMENT - ARTICLE {article_num}: {article_data.get('title', '')} ===\n"
-                        detailed_content += json.dumps(article_data, indent=2)[:4000] + "\n"
-        
-        # Final response with all context
-        final_messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": comprehensive_context + detailed_content + f"\n\nBased on the complete agreement content above, provide strong management-focused advice for this question: {user_message}"}
-        ]
-        
-        # Add recent conversation history
-        recent_messages = st.session_state.messages[-6:] if len(st.session_state.messages) > 6 else st.session_state.messages
-        for msg in recent_messages:
-            final_messages.append({"role": msg["role"], "content": msg["content"]})
-        
-        response2 = client.chat.completions.create(
+        # Build the complete prompt
+        full_context = f"""You have access to the complete collective agreements. Here is the relevant content for this query:
+
+{detailed_content}
+
+CRITICAL INSTRUCTIONS:
+1. You MUST search through ALL the content provided above for specific provisions related to the question
+2. Look for exact clause numbers, subsections, and specific requirements
+3. Quote directly from the agreement text provided above
+4. Do NOT make assumptions - use only the content provided
+5. Provide specific citations with article numbers, section numbers, and clause references
+6. Focus on management rights and what the agreements specifically allow or require
+
+Question to analyze: {user_message}
+
+Provide strong, definitive management-focused advice based ONLY on the specific provisions shown above."""
+
+        # Make the API call
+        response = client.chat.completions.create(
             model="gpt-4",
-            messages=final_messages,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": full_context}
+            ],
             max_tokens=1500,
-            temperature=0.3
+            temperature=0.2
         )
         
-        return response2.choices[0].message.content
+        return response.choices[0].message.content
         
     except Exception as e:
         return f"Error in analysis: {str(e)}"
+
+def format_article_content(article_data):
+    """Format article content for better readability"""
+    formatted = ""
+    
+    if 'title' in article_data:
+        formatted += f"TITLE: {article_data['title']}\n\n"
+    
+    if 'content' in article_data:
+        formatted += f"CONTENT: {article_data['content']}\n\n"
+    
+    if 'sections' in article_data:
+        formatted += "SECTIONS:\n"
+        sections = article_data['sections']
+        for section_key, section_data in sections.items():
+            formatted += f"\n{section_key}. "
+            if isinstance(section_data, dict):
+                if 'title' in section_data:
+                    formatted += f"{section_data['title']}\n"
+                if 'content' in section_data:
+                    formatted += f"   {section_data['content']}\n"
+                if 'subsections' in section_data:
+                    for subsection_key, subsection_content in section_data['subsections'].items():
+                        formatted += f"   {subsection_key}) {subsection_content}\n"
+            else:
+                formatted += f"{section_data}\n"
+    
+    # Handle other common structures
+    for key, value in article_data.items():
+        if key not in ['title', 'content', 'sections']:
+            if isinstance(value, (dict, list)):
+                formatted += f"\n{key.upper()}:\n{json.dumps(value, indent=2)}\n"
+            else:
+                formatted += f"\n{key.upper()}: {value}\n"
+    
+    return formatted
 
 def get_ai_response(user_message, collective_agreement, common_agreement, api_key):
     """Get response using multiple API calls approach"""
