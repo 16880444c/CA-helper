@@ -16,12 +16,8 @@ except ImportError:
     st.error("Please install faiss: pip install faiss-cpu")
     st.stop()
 
-# Import the built-in agreements data
-try:
-    from agreements_data import get_common_agreement, get_local_agreement
-    BUILTIN_AGREEMENTS_AVAILABLE = True
-except ImportError:
-    BUILTIN_AGREEMENTS_AVAILABLE = False
+# Check if JSON files are available
+BUILTIN_AGREEMENTS_AVAILABLE = os.path.exists('complete_local.json') and os.path.exists('complete_common.json')
 
 # Set page config
 st.set_page_config(
@@ -270,14 +266,21 @@ def load_agreement_from_file(file) -> Dict:
         return None
 
 def load_builtin_agreements() -> Tuple[Dict, Dict]:
-    """Load the built-in agreements from the agreements_data module"""
-    if not BUILTIN_AGREEMENTS_AVAILABLE:
-        return None, None
-    
+    """Load the built-in agreements from JSON files"""
     try:
-        common_agreement = get_common_agreement()
-        local_agreement = get_local_agreement()
+        # Load from the JSON files directly
+        with open('complete_local.json', 'r', encoding='utf-8') as f:
+            local_agreement = json.load(f)
+        
+        with open('complete_common.json', 'r', encoding='utf-8') as f:
+            common_agreement = json.load(f)
+        
         return local_agreement, common_agreement
+        
+    except FileNotFoundError as e:
+        st.error(f"JSON files not found: {str(e)}")
+        st.info("Please ensure 'complete_local.json' and 'complete_common.json' are in the same directory as the app.")
+        return None, None
     except Exception as e:
         st.error(f"Error loading built-in agreements: {e}")
         return None, None
@@ -420,14 +423,14 @@ def main():
         st.header("📁 Load Agreements")
         
         if BUILTIN_AGREEMENTS_AVAILABLE:
-            use_builtin = st.checkbox("Use built-in agreements", value=True)
+            use_builtin = st.checkbox("Use built-in JSON files", value=True)
         else:
             use_builtin = False
-            st.info("💡 Built-in agreements not available. Please upload JSON files or add agreements_data.py")
+            st.info("💡 Place 'complete_local.json' and 'complete_common.json' in the app directory to enable built-in loading")
         
         if use_builtin and BUILTIN_AGREEMENTS_AVAILABLE:
-            if st.button("🔄 Load Built-in Agreements"):
-                with st.spinner("Loading built-in agreements..."):
+            if st.button("🔄 Load JSON Files"):
+                with st.spinner("Loading agreements from JSON files..."):
                     local_agreement, common_agreement = load_builtin_agreements()
                     
                     if local_agreement and common_agreement:
@@ -442,12 +445,12 @@ def main():
                         if rag.create_embeddings(api_key):
                             st.session_state.rag_system = rag
                             st.session_state.agreements_loaded = True
-                            st.success(f"✅ Processed {len(rag.chunks)} chunks successfully!")
+                            st.success(f"✅ Processed {len(rag.chunks)} chunks from JSON files!")
                             st.rerun()
                         else:
                             st.error("Failed to create embeddings")
                     else:
-                        st.error("Built-in agreements not available - please upload files")
+                        st.error("Failed to load JSON files - please upload manually")
         else:
             local_file = st.file_uploader("Local Agreement JSON", type="json", key="local")
             common_file = st.file_uploader("Common Agreement JSON", type="json", key="common")
