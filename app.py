@@ -284,6 +284,17 @@ def identify_relevant_articles_comprehensive(user_message, collective_agreement,
     # Calculate scores for all articles
     article_scores = {}
     
+    # First, check for direct article references in the user message
+    direct_references = set()
+    article_pattern = r'article\s*(\d+(?:\.\d+)?)'
+    matches = re.findall(article_pattern, user_message.lower())
+    direct_references.update(matches)
+    
+    # Also check for pattern like "17.8" without "article"
+    decimal_pattern = r'\b(\d+\.\d+)\b'
+    decimal_matches = re.findall(decimal_pattern, user_message)
+    direct_references.update(decimal_matches)
+    
     # Score local agreement articles
     for article_num, article_info in local_index.items():
         score, factors = calculate_article_relevance(user_message, article_info, article_num)
@@ -304,6 +315,28 @@ def identify_relevant_articles_comprehensive(user_message, collective_agreement,
                 'factors': factors,
                 'type': 'common',
                 'num': article_num
+            }
+    
+    # Ensure directly referenced articles are included with high priority
+    for ref_article in direct_references:
+        # Check if this article exists in either agreement
+        local_content = extract_article_content_enhanced(collective_agreement, ref_article)
+        common_content = extract_article_content_enhanced(common_agreement, ref_article)
+        
+        if local_content.strip():
+            article_scores[f"local_{ref_article}"] = {
+                'score': 150,  # Very high score for direct references
+                'factors': [f"Direct reference in user message: {ref_article}"],
+                'type': 'local',
+                'num': ref_article
+            }
+        
+        if common_content.strip():
+            article_scores[f"common_{ref_article}"] = {
+                'score': 150,  # Very high score for direct references
+                'factors': [f"Direct reference in user message: {ref_article}"],
+                'type': 'common',
+                'num': ref_article
             }
     
     # Sort by score and select balanced representation
@@ -362,8 +395,51 @@ def extract_article_content_enhanced(agreement, article_num):
     if article_num in articles:
         article_data = articles[article_num]
     else:
-        # Try to find partial matches
-        matching_articles = [k for k in articles.keys() if k.startswith(article_num + '.') or k == article_num]
+        # Try to find partial matches (e.g., "17.8" or within Article 17, Section 8)
+        matching_articles = []
+        
+        # Direct match with dot notation
+        if article_num in articles:
+            matching_articles = [article_num]
+        else:
+            # Look for articles that start with the number
+            for key in articles.keys():
+                if key.startswith(article_num + '.') or key == article_num:
+                    matching_articles.append(key)
+            
+            # If looking for something like "17.8", also check within Article 17's sections
+            if '.' in article_num:
+                main_article, sub_section = article_num.split('.', 1)
+                if main_article in articles:
+                    main_article_data = articles[main_article]
+                    if isinstance(main_article_data, dict) and 'sections' in main_article_data:
+                        sections = main_article_data['sections']
+                        if isinstance(sections, dict):
+                            # Look for the subsection
+                            if sub_section in sections or f"{main_article}.{sub_section}" in sections:
+                                # Extract this specific section
+                                section_key = sub_section if sub_section in sections else f"{main_article}.{sub_section}"
+                                section_data = sections[section_key]
+                                
+                                title = main_article_data.get('title', 'No Title')
+                                content += f"**Article {main_article}: {title}**\n\n"
+                                
+                                if isinstance(section_data, dict):
+                                    section_title = section_data.get('title', '')
+                                    if section_title:
+                                        content += f"  **{article_num}: {section_title}**\n"
+                                    else:
+                                        content += f"  **Section {article_num}:**\n"
+                                    
+                                    if 'content' in section_data:
+                                        content += f"  {section_data['content']}\n\n"
+                                    elif 'text' in section_data:
+                                        content += f"  {section_data['text']}\n\n"
+                                elif isinstance(section_data, str):
+                                    content += f"  **{article_num}:** {section_data}\n\n"
+                                
+                                return content
+        
         if matching_articles:
             article_data = articles[matching_articles[0]]
     
