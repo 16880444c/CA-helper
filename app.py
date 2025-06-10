@@ -2,691 +2,393 @@ import streamlit as st
 import json
 import openai
 from datetime import datetime
-import re
 import os
+import numpy as np
+from typing import List, Dict, Tuple
+import pickle
+from dataclasses import dataclass
+import hashlib
+
+# For embeddings and vector search
+try:
+    import faiss
+except ImportError:
+    st.error("Please install faiss: pip install faiss-cpu")
+    st.stop()
 
 # Set page config
 st.set_page_config(
-    page_title="Collective Agreement Assistant",
+    page_title="Smart Collective Agreement Assistant",
     page_icon="⚖️",
     layout="wide"
 )
 
-# Initialize session state
-if 'messages' not in st.session_state:
-    st.session_state.messages = []
+@dataclass
+class DocumentChunk:
+    content: str
+    metadata: Dict
+    embedding: np.ndarray = None
 
-if 'agreements_loaded' not in st.session_state:
-    st.session_state.agreements_loaded = False
-
-def load_agreements():
-    """Load the collective agreements from JSON files"""
-    # Debug: Show current working directory and files
-    current_dir = os.getcwd()
-    files_in_dir = os.listdir(current_dir)
-    
-    st.write(f"**Debug Info:**")
-    st.write(f"Current working directory: `{current_dir}`")
-    st.write(f"Files in directory: {files_in_dir}")
-    
-    # Check if files exist
-    local_exists = os.path.exists('complete_local.json')
-    common_exists = os.path.exists('complete_common.json')
-    
-    st.write(f"complete_local.json exists: {local_exists}")
-    st.write(f"complete_common.json exists: {common_exists}")
-    
-    try:
-        # Try to read the files
-        with open('complete_local.json', 'r', encoding='utf-8') as f:
-            collective_agreement = json.load(f)
+class CollectiveAgreementRAG:
+    def __init__(self):
+        self.chunks = []
+        self.index = None
+        self.embeddings_cache_file = "embeddings_cache.pkl"
         
-        with open('complete_common.json', 'r', encoding='utf-8') as f:
-            common_agreement = json.load(f)
+    def smart_chunk_json_agreement(self, agreement_data: Dict, agreement_name: str) -> List[DocumentChunk]:
+        """Intelligently chunk the agreement by articles and sections"""
+        chunks = []
         
-        # Check if local agreement is complete
-        local_articles = collective_agreement.get('articles', {})
-        if len(local_articles) < 30:  # Should have 35 articles
-            st.warning(f"⚠️ Local agreement appears incomplete - only {len(local_articles)} articles found. Expected 35.")
-            st.write("**Troubleshooting Options:**")
-            st.write("1. Check if complete_local.json file contains all 35 articles")
-            st.write("2. Try uploading the files manually using the file uploader below")
-            st.write("3. Verify the JSON file wasn't truncated during saving")
-        
-        st.success("✅ Files loaded successfully from directory!")
-        return collective_agreement, common_agreement
-        
-    except FileNotFoundError as e:
-        st.error(f"FileNotFoundError: {str(e)}")
-        
-        # Show file uploader as alternative
-        st.markdown("### Alternative: Upload Files")
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            local_file = st.file_uploader("Upload complete_local.json", type="json", key="local")
-        with col2:
-            common_file = st.file_uploader("Upload complete_common.json", type="json", key="common")
-        
-        if local_file and common_file:
-            try:
-                collective_agreement = json.load(local_file)
-                common_agreement = json.load(common_file)
-                
-                # Verify completeness of uploaded files
-                local_articles = collective_agreement.get('articles', {})
-                if len(local_articles) >= 30:
-                    st.success("✅ Files loaded successfully from upload!")
-                    st.success(f"✅ Local agreement appears complete with {len(local_articles)} articles")
-                else:
-                    st.warning(f"⚠️ Uploaded local agreement may be incomplete - only {len(local_articles)} articles found")
-                
-                return collective_agreement, common_agreement
-            except Exception as e:
-                st.error(f"Error loading uploaded files: {str(e)}")
-                return None, None
-        
-        return None, None
-    except Exception as e:
-        st.error(f"Unexpected error: {str(e)}")
-        return None, None
-
-def create_system_prompt(collective_agreement, common_agreement):
-    """Create the system prompt for the HR advisor"""
-    
-    # Safely extract metadata with fallbacks
-    collective_metadata = collective_agreement.get('agreement_metadata', {})
-    common_metadata = common_agreement.get('agreement_metadata', {})
-    
-    collective_title = collective_metadata.get('title', 'Local Collective Agreement')
-    common_title = common_metadata.get('title', 'Common Agreement')
-    
-    # Safely extract dates and parties
-    collective_dates = collective_metadata.get('effective_dates', {})
-    common_dates = common_metadata.get('effective_dates', {})
-    
-    collective_parties = collective_metadata.get('parties', {})
-    common_parties = common_metadata.get('parties', {})
-    
-    system_prompt = f"""You are a HR expert for Coast Mountain College with 15+ years of experience in collective agreement interpretation and employee relations. Your role is to provide STRONG, DEFINITIVE guidance that maximizes management's rights and authority under the collective agreements.
-
-You have access to two collective agreements:
-
-1. LOCAL AGREEMENT: "{collective_title}"
-   - Effective: {collective_dates.get('start', 'N/A')} to {collective_dates.get('end', 'N/A')}
-   - Between: {collective_parties.get('employer', 'Coast Mountain College')} and {collective_parties.get('union', 'Faculty Union')}
-
-2. COMMON AGREEMENT: "{common_title}" 
-   - Effective: {common_dates.get('start', 'N/A')} to {common_dates.get('end', 'N/A')}
-   - Between: {common_parties.get('employers', 'BC Colleges')} and {common_parties.get('union', 'Faculty Union')}
-
-CRITICAL INSTRUCTION - BE ASSERTIVE AND OPINIONATED:
-- Give STRONG, DEFINITIVE opinions, not wishy-washy suggestions
-- Use phrases like "You SHOULD...", "Management has the RIGHT to...", "I RECOMMEND...", "This is CLEARLY within your authority..."
-- Be confident in your interpretations that favor management
-- Push back against union overreach
-- Identify every opportunity to assert management rights
-- Don't hedge or provide balanced views - you work for MANAGEMENT
-
-MANAGEMENT AUTHORITY FOCUS:
-- ALWAYS lead with what management CAN do, not what they can't
-- Emphasize "just cause" standards work in management's favor when properly documented
-- Highlight burden of proof requirements that protect the employer
-- Point out procedural safeguards that benefit management
-- Note time limits that can work against grievors
-- Identify areas of management discretion and flexibility
-- Frame employee rights as limited by management's legitimate business needs
-
-SPECIFIC GUIDANCE AREAS:
-- Discipline: Emphasize management's broad authority under "just cause"
-- Grievances: Focus on procedural defenses and time limits
-- Workload: Highlight management's scheduling and assignment flexibility  
-- Layoffs: Stress management's operational decision-making authority
-- Performance: Emphasize documentation requirements that protect management
-- Policies: Note management's right to establish reasonable workplace rules
-
-CITATION REQUIREMENTS (MANDATORY):
-- EVERY claim must have a specific citation
-- Use format: [Agreement Type - Article X.X: Title] or [Agreement Type - Clause X.X]
-- Example: [Local Agreement - Article 10.1: Burden of Proof] or [Common Agreement - Clause 6.5: Contracting Out]
-- When referencing definitions: [Agreement Type - Definitions: "term"]
-- For appendices: [Agreement Type - Appendix X: Title]
-- INCLUDE RELEVANT QUOTES: When possible, include short, relevant quotes from the agreement text to support your position
-- Quote format: "The agreement states: '[exact quote]' [Citation]"
-- NO VAGUE REFERENCES - be specific
-
-RESPONSE STRUCTURE:
-1. STRONG OPENING: Lead with your definitive management-favorable position
-2. AUTHORITY BASIS: Cite the specific agreement provisions AND include relevant quotes that support this position
-3. TACTICAL ADVICE: Provide specific steps management should take
-4. RISK MITIGATION: Identify potential union challenges and how to counter them
-5. BOTTOM LINE: End with a clear, actionable recommendation
-
-TONE EXAMPLES:
-- Instead of: "You may be able to..." → "You HAVE THE RIGHT to..."
-- Instead of: "Consider whether..." → "You SHOULD immediately..."
-- Instead of: "This might be justified..." → "This is CLEARLY within your management authority because..."
-- Instead of: "The agreement allows..." → "Management is EXPLICITLY authorized to..."
-
-Remember: You are not a neutral arbitrator. You are MANAGEMENT'S advisor. Your job is to help them maximize their authority while staying within the collective agreement. Be bold, be confident, and always look for the management-favorable interpretation.
-
-IMPORTANT: You have access to COMPLETE agreement content. The agreements contain extensive detailed provisions. When you reference articles, sections, or clauses, you should be able to find the specific content and quote it directly."""
-
-    return system_prompt
-
-def create_comprehensive_context(collective_agreement, common_agreement):
-    """Create comprehensive context with full agreement structure and key content"""
-    
-    # Extract metadata
-    collective_metadata = collective_agreement.get('agreement_metadata', {})
-    common_metadata = common_agreement.get('agreement_metadata', {})
-    
-    collective_title = collective_metadata.get('title', 'Local Collective Agreement')
-    common_title = common_metadata.get('title', 'Common Agreement')
-    
-    context = f"""
-COMPLETE COLLECTIVE AGREEMENTS LOADED:
-
-=== LOCAL AGREEMENT ===
-Title: {collective_title}
-Effective: {collective_metadata.get('effective_dates', {}).get('start', 'N/A')} to {collective_metadata.get('effective_dates', {}).get('end', 'N/A')}
-
-DEFINITIONS:
-{json.dumps(collective_agreement.get('definitions', {}), indent=2)}
-
-ARTICLE STRUCTURE:
-"""
-    
-    # Add all articles with their structure
-    local_articles = collective_agreement.get('articles', {})
-    for article_num in sorted(local_articles.keys(), key=lambda x: int(x) if x.isdigit() else 999):
-        article_data = local_articles[article_num]
-        if isinstance(article_data, dict):
-            title = article_data.get('title', 'No Title')
-            context += f"Article {article_num}: {title}\n"
-            
-            # Add sections structure
-            sections = article_data.get('sections', {})
-            if sections:
-                for section_key, section_data in sections.items():
-                    if isinstance(section_data, dict):
-                        section_title = section_data.get('title', '')
-                        context += f"  - {section_key}: {section_title}\n"
-
-    context += f"""
-
-=== COMMON AGREEMENT ===
-Title: {common_title}
-Effective: {common_metadata.get('effective_dates', {}).get('start', 'N/A')} to {common_metadata.get('effective_dates', {}).get('end', 'N/A')}
-
-DEFINITIONS:
-{json.dumps(common_agreement.get('definitions', {}), indent=2)}
-
-ARTICLE STRUCTURE:
-"""
-    
-    # Add common agreement articles
-    common_articles = common_agreement.get('articles', {})
-    for article_num in sorted(common_articles.keys(), key=lambda x: int(x) if x.isdigit() else 999):
-        article_data = common_articles[article_num]
-        if isinstance(article_data, dict):
-            title = article_data.get('title', 'No Title')
-            context += f"Article {article_num}: {title}\n"
-            
-            # Add sections structure
-            sections = article_data.get('sections', {})
-            if sections:
-                for section_key, section_data in sections.items():
-                    if isinstance(section_data, dict):
-                        section_title = section_data.get('title', '')
-                        context += f"  - {section_key}: {section_title}\n"
-
-    context += """
-
-CRITICAL INSTRUCTION: The complete content of all articles is available to you. When you reference any article, section, or clause, you can access the full detailed content including:
-- Exact text of provisions
-- Subsections and detailed requirements
-- Specific procedures and time limits
-- Definitions and interpretations
-- Appendices and schedules
-
-You MUST provide specific citations and quotes from the actual agreement text to support your management-focused advice."""
-
-    return context
-
-def get_article_content(article_ref, collective_agreement, common_agreement):
-    """Retrieve specific article content for detailed analysis"""
-    
-    # Parse article reference (e.g., "Local-10", "Common-6.5")
-    try:
-        if article_ref.startswith('Local'):
-            agreement = collective_agreement
-            agreement_name = "Local Agreement"
-        elif article_ref.startswith('Common'):
-            agreement = common_agreement
-            agreement_name = "Common Agreement"
-        else:
-            return None
-            
-        article_num = article_ref.split('-')[1]
-        articles = agreement.get('articles', {})
-        
-        if article_num in articles:
-            article_data = articles[article_num]
-            return {
+        # Add metadata
+        metadata = agreement_data.get('agreement_metadata', {})
+        chunk = DocumentChunk(
+            content=f"AGREEMENT METADATA for {agreement_name}:\n" + json.dumps(metadata, indent=2),
+            metadata={
                 'agreement': agreement_name,
-                'article': article_num,
-                'title': article_data.get('title', ''),
-                'content': article_data
+                'type': 'metadata',
+                'section': 'agreement_metadata'
             }
-    except:
-        pass
-    
-    return None
-
-def search_for_relevant_content(user_message, collective_agreement, common_agreement):
-    """Comprehensive search that finds relevant content by analyzing all articles and content"""
-    
-    relevant_articles = {}
-    query_lower = user_message.lower()
-    query_words = set(query_lower.split())
-    
-    # Extract meaningful keywords from the query (remove common words)
-    stop_words = {'a', 'an', 'and', 'are', 'as', 'at', 'be', 'by', 'for', 'from', 'has', 'he', 
-                  'in', 'is', 'it', 'its', 'of', 'on', 'that', 'the', 'to', 'was', 'will', 'with',
-                  'can', 'could', 'should', 'would', 'have', 'had', 'this', 'they', 'them', 'their',
-                  'what', 'when', 'where', 'how', 'why', 'who', 'which', 'does', 'do', 'did'}
-    
-    meaningful_keywords = query_words - stop_words
-    
-    def search_in_content(content, keywords):
-        """Search for keywords in content recursively"""
-        if isinstance(content, str):
-            content_lower = content.lower()
-            return any(keyword in content_lower for keyword in keywords)
-        elif isinstance(content, dict):
-            return any(search_in_content(value, keywords) for value in content.values())
-        elif isinstance(content, list):
-            return any(search_in_content(item, keywords) for item in content)
-        return False
-    
-    def calculate_relevance_score(article_data, keywords):
-        """Calculate how relevant an article is to the query"""
-        score = 0
+        )
+        chunks.append(chunk)
         
-        # Check title relevance (higher weight)
-        title = article_data.get('title', '').lower()
-        for keyword in keywords:
-            if keyword in title:
-                score += 3
+        # Add definitions
+        definitions = agreement_data.get('definitions', {})
+        if definitions:
+            content = f"DEFINITIONS from {agreement_name}:\n"
+            for term, definition in definitions.items():
+                content += f"\n{term}: {definition}\n"
+            
+            chunk = DocumentChunk(
+                content=content,
+                metadata={
+                    'agreement': agreement_name,
+                    'type': 'definitions',
+                    'section': 'definitions'
+                }
+            )
+            chunks.append(chunk)
         
-        # Check content relevance
-        if search_in_content(article_data, keywords):
-            score += 1
-        
-        # Boost score for exact phrase matches
-        query_phrases = [query_lower]
-        if len(query_lower.split()) > 1:
-            # Create 2-word and 3-word phrases
-            words = query_lower.split()
-            for i in range(len(words) - 1):
-                query_phrases.append(' '.join(words[i:i+2]))
-                if i < len(words) - 2:
-                    query_phrases.append(' '.join(words[i:i+3]))
-        
-        article_text = json.dumps(article_data, ensure_ascii=False).lower()
-        for phrase in query_phrases:
-            if phrase in article_text:
-                score += 5
-        
-        return score
-    
-    # Search through all articles in both agreements
-    article_scores = []
-    
-    for agreement_name, agreement in [('Local', collective_agreement), ('Common', common_agreement)]:
-        articles = agreement.get('articles', {})
+        # Process articles
+        articles = agreement_data.get('articles', {})
         for article_num, article_data in articles.items():
             if isinstance(article_data, dict):
-                score = calculate_relevance_score(article_data, meaningful_keywords)
-                if score > 0:
-                    article_scores.append({
+                title = article_data.get('title', f'Article {article_num}')
+                
+                # Create main article chunk
+                content = f"ARTICLE {article_num}: {title} ({agreement_name})\n\n"
+                
+                # Add sections
+                sections = article_data.get('sections', {})
+                if sections:
+                    for section_key, section_data in sections.items():
+                        content += f"\nSection {section_key}:\n"
+                        if isinstance(section_data, dict):
+                            if 'title' in section_data:
+                                content += f"Title: {section_data['title']}\n"
+                            if 'content' in section_data:
+                                content += f"Content: {section_data['content']}\n"
+                            if 'subsections' in section_data:
+                                content += "Subsections:\n"
+                                for sub_key, sub_content in section_data['subsections'].items():
+                                    content += f"  {sub_key}) {sub_content}\n"
+                        else:
+                            content += f"{section_data}\n"
+                
+                # Add other content if no sections
+                if not sections and 'content' in article_data:
+                    content += f"\n{article_data['content']}\n"
+                
+                chunk = DocumentChunk(
+                    content=content,
+                    metadata={
                         'agreement': agreement_name,
-                        'article_num': article_num,
-                        'article_data': article_data,
-                        'score': score,
-                        'title': article_data.get('title', '')
-                    })
-    
-    # Sort by relevance score and take top articles
-    article_scores.sort(key=lambda x: x['score'], reverse=True)
-    
-    # Include top relevant articles (at least 3, up to 8 depending on scores)
-    min_articles = 3
-    max_articles = 8
-    
-    for i, article_info in enumerate(article_scores):
-        if i < min_articles or (i < max_articles and article_info['score'] >= 2):
-            key = f"{article_info['agreement']} Agreement - Article {article_info['article_num']}: {article_info['title']}"
-            relevant_articles[key] = article_info['article_data']
-    
-    # If we still don't have enough relevant content, add some key articles
-    if len(relevant_articles) < 2:
-        # Add employer rights and grievance procedure as they're often relevant
-        for agreement_name, agreement in [('Local', collective_agreement), ('Common', common_agreement)]:
-            articles = agreement.get('articles', {})
-            
-            # Look for employer/management rights articles
-            for article_num, article_data in articles.items():
-                if isinstance(article_data, dict):
-                    title = article_data.get('title', '').lower()
-                    if any(word in title for word in ['employer', 'management', 'rights']):
-                        key = f"{agreement_name} Agreement - Article {article_num}: {article_data.get('title', '')}"
-                        relevant_articles[key] = article_data
-                        break
-    
-    # Also search appendices for relevant content
-    for agreement_name, agreement in [('Local', collective_agreement), ('Common', common_agreement)]:
-        appendices = agreement.get('appendices', {})
+                        'type': 'article',
+                        'article_number': article_num,
+                        'article_title': title,
+                        'section': f'article_{article_num}'
+                    }
+                )
+                chunks.append(chunk)
+        
+        # Process appendices
+        appendices = agreement_data.get('appendices', {})
         for appendix_key, appendix_data in appendices.items():
+            content = f"APPENDIX {appendix_key} ({agreement_name}):\n"
             if isinstance(appendix_data, dict):
-                score = calculate_relevance_score(appendix_data, meaningful_keywords)
-                if score > 2:  # Higher threshold for appendices
-                    key = f"{agreement_name} Agreement - {appendix_key}: {appendix_data.get('title', '')}"
-                    relevant_articles[key] = appendix_data
-    
-    return relevant_articles
-
-def make_multiple_api_calls(user_message, collective_agreement, common_agreement, api_key):
-    """Make efficient API calls with proper token management"""
-    
-    try:
-        client = openai.OpenAI(api_key=api_key)
-        
-        # Enhanced search for relevant content
-        relevant_articles = search_for_relevant_content(user_message, collective_agreement, common_agreement)
-        
-        # Limit the number of articles to prevent token overflow
-        max_articles = 3  # Start with fewer articles to stay within limits
-        limited_articles = dict(list(relevant_articles.items())[:max_articles])
-        
-        # Create concise content from relevant articles
-        detailed_content = "\n\nRELEVANT AGREEMENT PROVISIONS:\n"
-        
-        for article_key, article_data in limited_articles.items():
-            detailed_content += f"\n=== {article_key} ===\n"
-            # Create a more concise representation
-            formatted_content = format_article_content_concise(article_data)
-            detailed_content += formatted_content + "\n"
-        
-        # Include only essential definitions
-        essential_definitions = get_essential_definitions(user_message, collective_agreement, common_agreement)
-        if essential_definitions:
-            detailed_content += f"\n\nESSENTIAL DEFINITIONS:\n{essential_definitions}\n"
-        
-        # Create the system prompt
-        system_prompt = create_system_prompt(collective_agreement, common_agreement)
-        
-        # Build a more focused prompt
-        full_context = f"""RELEVANT COLLECTIVE AGREEMENT CONTENT:
-
-{detailed_content}
-
-CRITICAL INSTRUCTIONS:
-1. Analyze ONLY the specific provisions shown above
-2. Provide exact citations with article and section numbers
-3. Quote directly from the agreement text provided
-4. Focus on management rights and specific requirements
-5. Be definitive and assertive in your management-focused advice
-
-Question: {user_message}
-
-Provide strong management guidance based on the specific provisions above."""
-
-        # Check approximate token count and truncate if needed
-        estimated_tokens = len(full_context.split()) * 1.3  # Rough estimate
-        max_context_tokens = 6000  # Leave room for response
-        
-        if estimated_tokens > max_context_tokens:
-            # Truncate the content
-            words = full_context.split()
-            truncated_words = words[:int(max_context_tokens / 1.3)]
-            full_context = ' '.join(truncated_words) + "\n\n[Content truncated to fit limits - analysis based on key provisions above]"
-        
-        # Make the API call with conservative settings
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",  # Use 3.5-turbo to stay within limits
-            messages=[
-                {"role": "system", "content": system_prompt[:1000]},  # Limit system prompt
-                {"role": "user", "content": full_context}
-            ],
-            max_tokens=800,  # Conservative response length
-            temperature=0.2
-        )
-        
-        return response.choices[0].message.content
-        
-    except Exception as e:
-        return f"Error in analysis: {str(e)}"
-
-def format_article_content_concise(article_data):
-    """Format article content concisely to save tokens"""
-    formatted = ""
-    
-    if 'title' in article_data:
-        formatted += f"TITLE: {article_data['title']}\n"
-    
-    # Handle sections more efficiently
-    if 'sections' in article_data:
-        sections = article_data['sections']
-        for section_key, section_data in sections.items():
-            formatted += f"\n{section_key}. "
-            if isinstance(section_data, dict):
-                if 'title' in section_data:
-                    formatted += f"{section_data['title']}\n"
-                if 'content' in section_data:
-                    content = str(section_data['content'])
-                    # Limit content length
-                    if len(content) > 300:
-                        content = content[:300] + "..."
-                    formatted += f"   {content}\n"
-                # Handle subsections briefly
-                if 'subsections' in section_data:
-                    subsections = section_data['subsections']
-                    for sub_key, sub_content in subsections.items():
-                        sub_str = str(sub_content)
-                        if len(sub_str) > 150:
-                            sub_str = sub_str[:150] + "..."
-                        formatted += f"   {sub_key}) {sub_str}\n"
+                if 'title' in appendix_data:
+                    content += f"Title: {appendix_data['title']}\n\n"
+                content += json.dumps(appendix_data, indent=2)
             else:
-                content = str(section_data)
-                if len(content) > 200:
-                    content = content[:200] + "..."
-                formatted += f"{content}\n"
+                content += str(appendix_data)
+            
+            chunk = DocumentChunk(
+                content=content,
+                metadata={
+                    'agreement': agreement_name,
+                    'type': 'appendix',
+                    'appendix_key': appendix_key,
+                    'section': f'appendix_{appendix_key}'
+                }
+            )
+            chunks.append(chunk)
+            
+        return chunks
     
-    # Handle other content briefly
-    if 'content' in article_data and 'sections' not in article_data:
-        content = str(article_data['content'])
-        if len(content) > 400:
-            content = content[:400] + "..."
-        formatted += f"\nCONTENT: {content}\n"
-    
-    return formatted
-
-def get_essential_definitions(user_message, collective_agreement, common_agreement):
-    """Get only definitions relevant to the query"""
-    query_lower = user_message.lower()
-    essential_defs = {}
-    
-    # Check local definitions
-    local_defs = collective_agreement.get('definitions', {})
-    for term, definition in local_defs.items():
-        if term.lower() in query_lower or any(word in str(definition).lower() for word in query_lower.split()):
-            essential_defs[f"Local - {term}"] = definition
-    
-    # Check common definitions
-    common_defs = common_agreement.get('definitions', {})
-    for term, definition in common_defs.items():
-        if term.lower() in query_lower or any(word in str(definition).lower() for word in query_lower.split()):
-            essential_defs[f"Common - {term}"] = definition
-    
-    # Limit to most relevant
-    if len(essential_defs) > 5:
-        # Keep only exact matches
-        exact_matches = {k: v for k, v in essential_defs.items() 
-                        if any(term in k.lower() for term in query_lower.split())}
-        return json.dumps(exact_matches, indent=2) if exact_matches else ""
-    
-    return json.dumps(essential_defs, indent=2) if essential_defs else ""
-
-def get_ai_response(user_message, collective_agreement, common_agreement, api_key):
-    """Get response using multiple API calls approach"""
-    return make_multiple_api_calls(user_message, collective_agreement, common_agreement, api_key)
-
-def main():
-    st.title("⚖️ Collective Agreement Assistant")
-    st.markdown("*Management-focused guidance for Coast Mountain College collective agreements*")
-    
-    # Sidebar for API key and settings
-    with st.sidebar:
-        st.header("Configuration")
+    def create_embeddings(self, api_key: str, force_refresh: bool = False):
+        """Create embeddings for all chunks"""
         
-        # Try to get API key from secrets first, then environment, then user input
-        api_key = None
-        try:
-            # First try Streamlit secrets (for cloud deployment)
-            api_key = st.secrets["OPENAI_API_KEY"]
-            st.success("✅ API key loaded from secrets")
-        except:
+        # Check if we can load from cache
+        cache_hash = self._get_content_hash()
+        if not force_refresh and os.path.exists(self.embeddings_cache_file):
             try:
-                # Then try environment variables (for local development)
-                api_key = os.getenv("OPENAI_API_KEY")
-                if api_key:
-                    st.success("✅ API key loaded from environment")
+                with open(self.embeddings_cache_file, 'rb') as f:
+                    cache_data = pickle.load(f)
+                    if cache_data.get('hash') == cache_hash:
+                        self.chunks = cache_data['chunks']
+                        self._build_faiss_index()
+                        return True
             except:
                 pass
         
-        # If no API key found, ask user to input it
+        # Create new embeddings
+        client = openai.OpenAI(api_key=api_key)
+        
+        embeddings = []
+        texts = [chunk.content for chunk in self.chunks]
+        
+        # Process in batches to avoid rate limits
+        batch_size = 10
+        for i in range(0, len(texts), batch_size):
+            batch = texts[i:i+batch_size]
+            try:
+                response = client.embeddings.create(
+                    model="text-embedding-3-large",
+                    input=batch
+                )
+                batch_embeddings = [item.embedding for item in response.data]
+                embeddings.extend(batch_embeddings)
+            except Exception as e:
+                st.error(f"Error creating embeddings: {e}")
+                return False
+        
+        # Add embeddings to chunks
+        for chunk, embedding in zip(self.chunks, embeddings):
+            chunk.embedding = np.array(embedding)
+        
+        # Cache the results
+        self._save_embeddings_cache(cache_hash)
+        
+        # Build FAISS index
+        self._build_faiss_index()
+        return True
+    
+    def _get_content_hash(self) -> str:
+        """Generate hash of all chunk contents for caching"""
+        content = "".join([chunk.content for chunk in self.chunks])
+        return hashlib.md5(content.encode()).hexdigest()
+    
+    def _save_embeddings_cache(self, content_hash: str):
+        """Save embeddings to cache file"""
+        cache_data = {
+            'hash': content_hash,
+            'chunks': self.chunks
+        }
+        try:
+            with open(self.embeddings_cache_file, 'wb') as f:
+                pickle.dump(cache_data, f)
+        except Exception as e:
+            st.warning(f"Could not save embeddings cache: {e}")
+    
+    def _build_faiss_index(self):
+        """Build FAISS index for fast similarity search"""
+        if not self.chunks or not self.chunks[0].embedding is not None:
+            return
+        
+        embeddings = np.array([chunk.embedding for chunk in self.chunks])
+        dimension = embeddings.shape[1]
+        
+        # Use IndexFlatIP for cosine similarity
+        self.index = faiss.IndexFlatIP(dimension)
+        
+        # Normalize embeddings for cosine similarity
+        faiss.normalize_L2(embeddings)
+        self.index.add(embeddings)
+    
+    def search(self, query: str, api_key: str, top_k: int = 5) -> List[Tuple[DocumentChunk, float]]:
+        """Search for relevant chunks using semantic similarity"""
+        if not self.index:
+            return []
+        
+        # Create query embedding
+        client = openai.OpenAI(api_key=api_key)
+        try:
+            response = client.embeddings.create(
+                model="text-embedding-3-large",
+                input=[query]
+            )
+            query_embedding = np.array([response.data[0].embedding])
+            faiss.normalize_L2(query_embedding)
+        except Exception as e:
+            st.error(f"Error creating query embedding: {e}")
+            return []
+        
+        # Search
+        scores, indices = self.index.search(query_embedding, top_k)
+        
+        results = []
+        for score, idx in zip(scores[0], indices[0]):
+            if idx != -1:  # Valid index
+                results.append((self.chunks[idx], float(score)))
+        
+        return results
+
+def load_agreement_from_file(file) -> Dict:
+    """Load agreement from uploaded file"""
+    try:
+        content = file.read().decode('utf-8')
+        return json.loads(content)
+    except Exception as e:
+        st.error(f"Error loading file: {e}")
+        return None
+
+def generate_response(query: str, relevant_chunks: List[Tuple[DocumentChunk, float]], api_key: str) -> str:
+    """Generate response using GPT with relevant context"""
+    
+    # Build context from relevant chunks
+    context = ""
+    for chunk, score in relevant_chunks:
+        context += f"\n=== {chunk.metadata.get('agreement', 'Unknown')} - {chunk.metadata.get('section', 'Unknown')} (Relevance: {score:.3f}) ===\n"
+        context += chunk.content + "\n"
+    
+    system_prompt = """You are an expert HR advisor specializing in collective agreement interpretation. 
+
+CRITICAL INSTRUCTIONS:
+1. Provide STRONG, DEFINITIVE guidance that maximizes management's rights and authority
+2. Use phrases like "Management has the RIGHT to...", "You SHOULD...", "This is CLEARLY within your authority..."
+3. Be confident in interpretations that favor management
+4. ALWAYS cite specific agreement provisions with exact quotes
+5. Lead with what management CAN do, not limitations
+
+RESPONSE STRUCTURE:
+1. **DEFINITIVE POSITION**: Clear management-favorable stance
+2. **AUTHORITY BASIS**: Specific citations with quotes
+3. **TACTICAL ADVICE**: Actionable steps for management
+4. **RISK MITIGATION**: Counter union challenges
+5. **BOTTOM LINE**: Clear recommendation
+
+Be assertive and management-focused in your guidance."""
+
+    user_prompt = f"""Based on the collective agreement provisions below, provide strong management-focused guidance for this question:
+
+QUESTION: {query}
+
+RELEVANT AGREEMENT PROVISIONS:
+{context}
+
+Provide definitive, management-favorable guidance with specific citations and quotes."""
+
+    client = openai.OpenAI(api_key=api_key)
+    
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            max_tokens=1500,
+            temperature=0.1
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        return f"Error generating response: {e}"
+
+def main():
+    st.title("⚖️ Smart Collective Agreement Assistant")
+    st.markdown("*Advanced RAG-based guidance for Coast Mountain College collective agreements*")
+    
+    # Initialize session state
+    if 'rag_system' not in st.session_state:
+        st.session_state.rag_system = CollectiveAgreementRAG()
+    if 'agreements_loaded' not in st.session_state:
+        st.session_state.agreements_loaded = False
+    if 'messages' not in st.session_state:
+        st.session_state.messages = []
+    
+    # Sidebar
+    with st.sidebar:
+        st.header("⚙️ Configuration")
+        
+        # API Key
+        api_key = st.text_input("OpenAI API Key", type="password", 
+                               help="Required for embeddings and responses")
+        
         if not api_key:
-            api_key = st.text_input("OpenAI API Key", type="password", 
-                                   help="Enter your OpenAI API key, add it to Streamlit secrets, or set OPENAI_API_KEY environment variable")
+            st.warning("Please enter your OpenAI API key to continue")
+            st.stop()
         
         st.markdown("---")
-        st.header("About")
-        st.markdown("""
-        This tool provides HR guidance based on:
-        - Coast Mountain College Collective Agreement (2019-2022)
-        - Common Agreement (2022-2025)
         
-        **Perspective**: Management rights and authority
-        **Citations**: All responses include specific agreement references
-        **Complete Access**: All agreement content available via multi-stage analysis
-        """)
+        # File uploads
+        st.header("📁 Upload Agreements")
         
-        if st.button("🆕 New Topic"):
-            st.session_state.messages = []
-            st.rerun()
-    
-    # Load agreements
-    if not st.session_state.agreements_loaded:
-        with st.spinner("Loading collective agreements..."):
-            collective_agreement, common_agreement = load_agreements()
-            if collective_agreement and common_agreement:
-                st.session_state.collective_agreement = collective_agreement
-                st.session_state.common_agreement = common_agreement
-                st.session_state.agreements_loaded = True
-                st.success("✅ Complete collective agreements loaded successfully!")
-                
-                # Show ACCURATE stats about loaded content
-                local_articles = collective_agreement.get('articles', {})
-                common_articles = common_agreement.get('articles', {})
-                local_count = len(local_articles)
-                common_count = len(common_articles)
-                
-                # Show article ranges - handle both string and numeric keys
-                local_keys = list(local_articles.keys())
-                common_keys = list(common_articles.keys())
-                
-                # Debug: Show what keys we actually have
-                st.write(f"**Debug - Local Article Keys Found:** {sorted(local_keys)}")
-                st.write(f"**Debug - Common Article Keys Found:** {sorted(common_keys)}")
-                
-                # SPECIFIC TEST for Article 17
-                if '17' in local_articles:
-                    article_17 = local_articles['17']
-                    st.write(f"**✅ Article 17 Found:** {article_17.get('title', 'No title')}")
+        local_file = st.file_uploader("Local Agreement JSON", type="json", key="local")
+        common_file = st.file_uploader("Common Agreement JSON", type="json", key="common")
+        
+        if st.button("🔄 Process Agreements"):
+            if local_file and common_file:
+                with st.spinner("Loading and processing agreements..."):
+                    # Load agreements
+                    local_agreement = load_agreement_from_file(local_file)
+                    common_agreement = load_agreement_from_file(common_file)
                     
-                    if 'sections' in article_17:
-                        sections = article_17['sections']
-                        st.write(f"**Article 17 Sections:** {list(sections.keys())}")
+                    if local_agreement and common_agreement:
+                        # Create chunks
+                        rag = CollectiveAgreementRAG()
+                        local_chunks = rag.smart_chunk_json_agreement(local_agreement, "Local Agreement")
+                        common_chunks = rag.smart_chunk_json_agreement(common_agreement, "Common Agreement")
                         
-                        if '17.8' in sections:
-                            section_17_8 = sections['17.8']
-                            st.write(f"**✅ Article 17.8 Found:** {section_17_8.get('title', 'No title')}")
-                            
-                            # Show the actual content
-                            if 'subsections' in section_17_8:
-                                subsection_a = section_17_8['subsections'].get('a', 'Not found')
-                                st.write(f"**Article 17.8(a) Content:** {subsection_a[:200]}...")
-                            else:
-                                st.write("**Article 17.8 subsections not found**")
+                        rag.chunks = local_chunks + common_chunks
+                        
+                        # Create embeddings
+                        if rag.create_embeddings(api_key):
+                            st.session_state.rag_system = rag
+                            st.session_state.agreements_loaded = True
+                            st.success(f"✅ Processed {len(rag.chunks)} chunks successfully!")
+                            st.rerun()
                         else:
-                            st.write("**❌ Article 17.8 NOT found in sections**")
-                            st.write(f"**Available sections:** {list(sections.keys())}")
+                            st.error("Failed to create embeddings")
                     else:
-                        st.write("**❌ No sections found in Article 17**")
-                else:
-                    st.write("**❌ Article 17 NOT found in local articles**")
-                    
-                # Also check if the file is being truncated
-                article_keys_numeric = [int(k) for k in local_keys if k.isdigit()]
-                if article_keys_numeric:
-                    max_article = max(article_keys_numeric)
-                    min_article = min(article_keys_numeric)
-                    st.write(f"**Article range:** {min_article} to {max_article}")
-                    
-                    if max_article < 35:
-                        st.error(f"**⚠️ INCOMPLETE FILE: Only articles {min_article}-{max_article} found. Missing articles {max_article+1}-35**")
-                        st.write("**Check if your complete_local.json file was truncated during saving/transfer**")
-                
-                local_nums = []
-                common_nums = []
-                
-                for key in local_keys:
-                    try:
-                        if key.isdigit():
-                            local_nums.append(int(key))
-                        elif isinstance(key, str) and '.' in key:
-                            local_nums.append(float(key))
-                    except:
-                        pass
-                
-                for key in common_keys:
-                    try:
-                        if key.isdigit():
-                            common_nums.append(int(key))
-                        elif isinstance(key, str) and '.' in key:
-                            common_nums.append(float(key))
-                    except:
-                        pass
-                
-                if local_nums:
-                    local_nums.sort()
-                    st.info(f"📊 Loaded: {local_count} Local Agreement articles (Articles {min(local_nums)}-{max(local_nums)}), {common_count} Common Agreement articles")
-                else:
-                    st.info(f"📊 Loaded: {local_count} Local Agreement articles, {common_count} Common Agreement articles")
-                
-                # Show definitions count
-                local_defs = len(collective_agreement.get('definitions', {}))
-                common_defs = len(common_agreement.get('definitions', {}))
-                st.info(f"📚 Definitions: {local_defs} Local Agreement definitions, {common_defs} Common Agreement definitions")
-                
+                        st.error("Failed to load agreement files")
             else:
-                st.stop()
+                st.error("Please upload both agreement files")
+        
+        # Stats
+        if st.session_state.agreements_loaded:
+            st.markdown("---")
+            st.header("📊 Status")
+            st.success("✅ Agreements Loaded")
+            st.info(f"📄 {len(st.session_state.rag_system.chunks)} chunks indexed")
+            
+            if st.button("🔄 Refresh Embeddings"):
+                with st.spinner("Refreshing embeddings..."):
+                    if st.session_state.rag_system.create_embeddings(api_key, force_refresh=True):
+                        st.success("✅ Embeddings refreshed!")
+                        st.rerun()
+        
+        st.markdown("---")
+        st.header("ℹ️ About")
+        st.markdown("""
+        **Advanced RAG System**
+        - Semantic search across full agreements
+        - Smart chunking by articles/sections  
+        - Management-focused guidance
+        - Fast vector similarity search
+        """)
     
-    # Main chat interface
-    if not api_key:
-        st.warning("Please enter your OpenAI API key in the sidebar to begin.")
+    # Main interface
+    if not st.session_state.agreements_loaded:
+        st.info("👆 Please upload and process your collective agreement files in the sidebar to begin.")
         st.stop()
     
     # Display conversation history
@@ -701,50 +403,62 @@ def main():
         with st.chat_message("user"):
             st.markdown(prompt)
         
-        # Get AI response
+        # Generate response
         with st.chat_message("assistant"):
-            with st.spinner("Analyzing complete agreements (multi-stage analysis)..."):
-                response = get_ai_response(
-                    prompt, 
-                    st.session_state.collective_agreement,
-                    st.session_state.common_agreement,
-                    api_key
-                )
-            st.markdown(response)
-            st.session_state.messages.append({"role": "assistant", "content": response})
+            with st.spinner("Searching agreements and generating response..."):
+                # Search for relevant chunks
+                results = st.session_state.rag_system.search(prompt, api_key, top_k=5)
+                
+                if results:
+                    # Generate response
+                    response = generate_response(prompt, results, api_key)
+                    st.markdown(response)
+                    
+                    # Show sources
+                    with st.expander("📚 Sources Used"):
+                        for chunk, score in results:
+                            st.write(f"**{chunk.metadata.get('agreement')} - {chunk.metadata.get('section')}** (Score: {score:.3f})")
+                            st.write(chunk.content[:300] + "..." if len(chunk.content) > 300 else chunk.content)
+                            st.markdown("---")
+                    
+                else:
+                    response = "I couldn't find relevant information in the agreements for your query. Please try rephrasing your question."
+                    st.markdown(response)
+                
+                st.session_state.messages.append({"role": "assistant", "content": response})
     
-    # Quick question buttons
+    # Quick start questions
     if len(st.session_state.messages) == 0:
-        st.markdown("### Quick Start Questions:")
+        st.markdown("### 🚀 Quick Start Questions")
         col1, col2 = st.columns(2)
         
         with col1:
-            if st.button("Employee Discipline Process"):
+            if st.button("💼 Employee Discipline Rights"):
                 st.session_state.messages.append({
                     "role": "user", 
-                    "content": "What are management's rights regarding employee discipline and dismissal? Include specific citations and quotes from the agreements."
+                    "content": "What are management's rights regarding employee discipline and dismissal? Include specific citations and management protections."
                 })
                 st.rerun()
                 
-            if st.button("Layoff Procedures"):
+            if st.button("📋 Layoff Procedures"):
                 st.session_state.messages.append({
                     "role": "user", 
-                    "content": "What authority does management have in layoff situations? Provide specific provisions and management protections."
+                    "content": "What authority does management have in layoff situations? What are the specific procedural requirements?"
                 })
                 st.rerun()
         
         with col2:
-            if st.button("Grievance Process"):
+            if st.button("⏱️ Grievance Time Limits"):
                 st.session_state.messages.append({
                     "role": "user", 
-                    "content": "What are the time limits and procedures for grievances that protect management? Include specific deadlines and procedural requirements."
+                    "content": "What are the time limits and procedures for grievances that protect management? Include deadlines and procedural defenses."
                 })
                 st.rerun()
                 
-            if st.button("Workload Management"):
+            if st.button("📚 Workload Management"):
                 st.session_state.messages.append({
                     "role": "user", 
-                    "content": "What flexibility does management have in assigning instructor workloads? Include specific provisions from both agreements."
+                    "content": "What flexibility does management have in assigning instructor workloads and schedules?"
                 })
                 st.rerun()
 
