@@ -381,7 +381,7 @@ def search_for_relevant_content(user_message, collective_agreement, common_agree
     return relevant_articles
 
 def make_multiple_api_calls(user_message, collective_agreement, common_agreement, api_key):
-    """Make multiple smaller API calls to handle large content with enhanced search"""
+    """Make efficient API calls with proper token management"""
     
     try:
         client = openai.OpenAI(api_key=api_key)
@@ -389,50 +389,61 @@ def make_multiple_api_calls(user_message, collective_agreement, common_agreement
         # Enhanced search for relevant content
         relevant_articles = search_for_relevant_content(user_message, collective_agreement, common_agreement)
         
-        # Create detailed content from relevant articles
-        detailed_content = "\n\nCOMPLETE RELEVANT ARTICLE CONTENT:\n"
+        # Limit the number of articles to prevent token overflow
+        max_articles = 3  # Start with fewer articles to stay within limits
+        limited_articles = dict(list(relevant_articles.items())[:max_articles])
         
-        for article_key, article_data in relevant_articles.items():
+        # Create concise content from relevant articles
+        detailed_content = "\n\nRELEVANT AGREEMENT PROVISIONS:\n"
+        
+        for article_key, article_data in limited_articles.items():
             detailed_content += f"\n=== {article_key} ===\n"
-            # Include the complete article content with better formatting
-            if isinstance(article_data, dict):
-                # Format the article content more readably
-                formatted_content = format_article_content(article_data)
-                detailed_content += formatted_content + "\n"
+            # Create a more concise representation
+            formatted_content = format_article_content_concise(article_data)
+            detailed_content += formatted_content + "\n"
         
-        # Include definitions that might be relevant
-        detailed_content += "\n\nRELEVANT DEFINITIONS:\n"
-        detailed_content += f"LOCAL AGREEMENT DEFINITIONS:\n{json.dumps(collective_agreement.get('definitions', {}), indent=2)}\n"
-        detailed_content += f"COMMON AGREEMENT DEFINITIONS:\n{json.dumps(common_agreement.get('definitions', {}), indent=2)}\n"
+        # Include only essential definitions
+        essential_definitions = get_essential_definitions(user_message, collective_agreement, common_agreement)
+        if essential_definitions:
+            detailed_content += f"\n\nESSENTIAL DEFINITIONS:\n{essential_definitions}\n"
         
-        # Create the system prompt and context
+        # Create the system prompt
         system_prompt = create_system_prompt(collective_agreement, common_agreement)
         
-        # Build the complete prompt
-        full_context = f"""You have access to the complete collective agreements. Here is the relevant content for this query:
+        # Build a more focused prompt
+        full_context = f"""RELEVANT COLLECTIVE AGREEMENT CONTENT:
 
 {detailed_content}
 
 CRITICAL INSTRUCTIONS:
-1. You MUST search through ALL the content provided above for specific provisions related to the question
-2. Look for exact clause numbers, subsections, and specific requirements
-3. Quote directly from the agreement text provided above
-4. Do NOT make assumptions - use only the content provided
-5. Provide specific citations with article numbers, section numbers, and clause references
-6. Focus on management rights and what the agreements specifically allow or require
+1. Analyze ONLY the specific provisions shown above
+2. Provide exact citations with article and section numbers
+3. Quote directly from the agreement text provided
+4. Focus on management rights and specific requirements
+5. Be definitive and assertive in your management-focused advice
 
-Question to analyze: {user_message}
+Question: {user_message}
 
-Provide strong, definitive management-focused advice based ONLY on the specific provisions shown above."""
+Provide strong management guidance based on the specific provisions above."""
 
-        # Make the API call
+        # Check approximate token count and truncate if needed
+        estimated_tokens = len(full_context.split()) * 1.3  # Rough estimate
+        max_context_tokens = 6000  # Leave room for response
+        
+        if estimated_tokens > max_context_tokens:
+            # Truncate the content
+            words = full_context.split()
+            truncated_words = words[:int(max_context_tokens / 1.3)]
+            full_context = ' '.join(truncated_words) + "\n\n[Content truncated to fit limits - analysis based on key provisions above]"
+        
+        # Make the API call with conservative settings
         response = client.chat.completions.create(
-            model="gpt-4",
+            model="gpt-3.5-turbo",  # Use 3.5-turbo to stay within limits
             messages=[
-                {"role": "system", "content": system_prompt},
+                {"role": "system", "content": system_prompt[:1000]},  # Limit system prompt
                 {"role": "user", "content": full_context}
             ],
-            max_tokens=1500,
+            max_tokens=800,  # Conservative response length
             temperature=0.2
         )
         
@@ -441,18 +452,15 @@ Provide strong, definitive management-focused advice based ONLY on the specific 
     except Exception as e:
         return f"Error in analysis: {str(e)}"
 
-def format_article_content(article_data):
-    """Format article content for better readability"""
+def format_article_content_concise(article_data):
+    """Format article content concisely to save tokens"""
     formatted = ""
     
     if 'title' in article_data:
-        formatted += f"TITLE: {article_data['title']}\n\n"
+        formatted += f"TITLE: {article_data['title']}\n"
     
-    if 'content' in article_data:
-        formatted += f"CONTENT: {article_data['content']}\n\n"
-    
+    # Handle sections more efficiently
     if 'sections' in article_data:
-        formatted += "SECTIONS:\n"
         sections = article_data['sections']
         for section_key, section_data in sections.items():
             formatted += f"\n{section_key}. "
@@ -460,22 +468,59 @@ def format_article_content(article_data):
                 if 'title' in section_data:
                     formatted += f"{section_data['title']}\n"
                 if 'content' in section_data:
-                    formatted += f"   {section_data['content']}\n"
+                    content = str(section_data['content'])
+                    # Limit content length
+                    if len(content) > 300:
+                        content = content[:300] + "..."
+                    formatted += f"   {content}\n"
+                # Handle subsections briefly
                 if 'subsections' in section_data:
-                    for subsection_key, subsection_content in section_data['subsections'].items():
-                        formatted += f"   {subsection_key}) {subsection_content}\n"
+                    subsections = section_data['subsections']
+                    for sub_key, sub_content in subsections.items():
+                        sub_str = str(sub_content)
+                        if len(sub_str) > 150:
+                            sub_str = sub_str[:150] + "..."
+                        formatted += f"   {sub_key}) {sub_str}\n"
             else:
-                formatted += f"{section_data}\n"
+                content = str(section_data)
+                if len(content) > 200:
+                    content = content[:200] + "..."
+                formatted += f"{content}\n"
     
-    # Handle other common structures
-    for key, value in article_data.items():
-        if key not in ['title', 'content', 'sections']:
-            if isinstance(value, (dict, list)):
-                formatted += f"\n{key.upper()}:\n{json.dumps(value, indent=2)}\n"
-            else:
-                formatted += f"\n{key.upper()}: {value}\n"
+    # Handle other content briefly
+    if 'content' in article_data and 'sections' not in article_data:
+        content = str(article_data['content'])
+        if len(content) > 400:
+            content = content[:400] + "..."
+        formatted += f"\nCONTENT: {content}\n"
     
     return formatted
+
+def get_essential_definitions(user_message, collective_agreement, common_agreement):
+    """Get only definitions relevant to the query"""
+    query_lower = user_message.lower()
+    essential_defs = {}
+    
+    # Check local definitions
+    local_defs = collective_agreement.get('definitions', {})
+    for term, definition in local_defs.items():
+        if term.lower() in query_lower or any(word in str(definition).lower() for word in query_lower.split()):
+            essential_defs[f"Local - {term}"] = definition
+    
+    # Check common definitions
+    common_defs = common_agreement.get('definitions', {})
+    for term, definition in common_defs.items():
+        if term.lower() in query_lower or any(word in str(definition).lower() for word in query_lower.split()):
+            essential_defs[f"Common - {term}"] = definition
+    
+    # Limit to most relevant
+    if len(essential_defs) > 5:
+        # Keep only exact matches
+        exact_matches = {k: v for k, v in essential_defs.items() 
+                        if any(term in k.lower() for term in query_lower.split())}
+        return json.dumps(exact_matches, indent=2) if exact_matches else ""
+    
+    return json.dumps(essential_defs, indent=2) if essential_defs else ""
 
 def get_ai_response(user_message, collective_agreement, common_agreement, api_key):
     """Get response using multiple API calls approach"""
@@ -541,11 +586,40 @@ def main():
                 local_count = len(local_articles)
                 common_count = len(common_articles)
                 
-                # Show article ranges
-                local_nums = sorted([int(num) for num in local_articles.keys() if num.isdigit()])
-                common_nums = sorted([int(num) for num in common_articles.keys() if num.isdigit()])
+                # Show article ranges - handle both string and numeric keys
+                local_keys = list(local_articles.keys())
+                common_keys = list(common_articles.keys())
                 
-                st.info(f"📊 Loaded: {local_count} Local Agreement articles (Articles {min(local_nums)}-{max(local_nums)}), {common_count} Common Agreement articles")
+                # Debug: Show what keys we actually have
+                st.write(f"**Debug - Local Article Keys Found:** {sorted(local_keys)}")
+                st.write(f"**Debug - Common Article Keys Found:** {sorted(common_keys)}")
+                
+                local_nums = []
+                common_nums = []
+                
+                for key in local_keys:
+                    try:
+                        if key.isdigit():
+                            local_nums.append(int(key))
+                        elif isinstance(key, str) and '.' in key:
+                            local_nums.append(float(key))
+                    except:
+                        pass
+                
+                for key in common_keys:
+                    try:
+                        if key.isdigit():
+                            common_nums.append(int(key))
+                        elif isinstance(key, str) and '.' in key:
+                            common_nums.append(float(key))
+                    except:
+                        pass
+                
+                if local_nums:
+                    local_nums.sort()
+                    st.info(f"📊 Loaded: {local_count} Local Agreement articles (Articles {min(local_nums)}-{max(local_nums)}), {common_count} Common Agreement articles")
+                else:
+                    st.info(f"📊 Loaded: {local_count} Local Agreement articles, {common_count} Common Agreement articles")
                 
                 # Show definitions count
                 local_defs = len(collective_agreement.get('definitions', {}))
