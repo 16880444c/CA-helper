@@ -594,6 +594,20 @@ def main():
                 st.write(f"**Debug - Local Article Keys Found:** {sorted(local_keys)}")
                 st.write(f"**Debug - Common Article Keys Found:** {sorted(common_keys)}")
                 
+                # Test: Let's specifically look for Article 17
+                if '17' in local_articles:
+                    article_17 = local_articles['17']
+                    st.write(f"**Article 17 Found:** Title = {article_17.get('title', 'No title')}")
+                    if 'sections' in article_17:
+                        sections = article_17['sections']
+                        st.write(f"**Article 17 Sections:** {list(sections.keys())}")
+                        if '17.8' in sections:
+                            st.write(f"**Article 17.8 Found:** {sections['17.8'].get('title', 'No title')}")
+                        else:
+                            st.write("**Article 17.8 NOT found in sections**")
+                else:
+                    st.write("**Article 17 NOT found in local articles**")
+                
                 local_nums = []
                 common_nums = []
                 
