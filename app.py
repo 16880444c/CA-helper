@@ -11,15 +11,6 @@ st.set_page_config(
     layout="wide"
 )
 
-def load_agreement_from_file(file) -> dict:
-    """Load agreement from uploaded file"""
-    try:
-        content = file.read().decode('utf-8')
-        return json.loads(content)
-    except Exception as e:
-        st.error(f"Error loading file: {e}")
-        return None
-
 def load_builtin_agreements() -> tuple:
     """Load the built-in agreements from JSON files"""
     try:
@@ -33,6 +24,7 @@ def load_builtin_agreements() -> tuple:
         
     except FileNotFoundError as e:
         st.error(f"JSON files not found: {str(e)}")
+        st.error("Please ensure 'complete_local.json' and 'complete_common.json' are in the same directory as this app.")
         return None, None
     except Exception as e:
         st.error(f"Error loading built-in agreements: {e}")
@@ -192,123 +184,36 @@ def main():
     st.markdown("*Complete collective agreement analysis with management-focused guidance*")
     
     # Initialize session state
-    if 'agreements_loaded' not in st.session_state:
-        st.session_state.agreements_loaded = False
-    if 'local_agreement' not in st.session_state:
-        st.session_state.local_agreement = None
-    if 'common_agreement' not in st.session_state:
-        st.session_state.common_agreement = None
     if 'messages' not in st.session_state:
         st.session_state.messages = []
     if 'total_queries' not in st.session_state:
         st.session_state.total_queries = 0
     
-    # Sidebar
-    with st.sidebar:
-        st.header("⚙️ Configuration")
-        
-        # API Key handling
-        api_key = None
+    # Get API key
+    api_key = None
+    try:
+        api_key = st.secrets["OPENAI_API_KEY"]
+    except:
         try:
-            api_key = st.secrets["OPENAI_API_KEY"]
-            st.success("✅ API key loaded from secrets")
+            api_key = os.getenv("OPENAI_API_KEY")
         except:
-            try:
-                api_key = os.getenv("OPENAI_API_KEY")
-                if api_key:
-                    st.success("✅ API key loaded from environment")
-            except:
-                pass
-        
-        if not api_key:
-            api_key = st.text_input("OpenAI API Key", type="password", 
-                                   help="Enter your OpenAI API key")
-            if not api_key:
-                st.warning("Please provide your OpenAI API key to continue")
-                st.stop()
-        
-        st.markdown("---")
-        
-        # Agreement Selection
-        st.header("📋 Agreement Selection")
-        agreement_scope = st.radio(
-            "Which agreement(s) do you need to query?",
-            ["Both Agreements (Complete Analysis)", 
-             "Local Agreement Only", 
-             "Common Agreement Only"],
-            help="Select specific agreement to focus analysis"
-        )
-        
-        # File loading
-        st.header("📁 Load Agreements")
-        
-        # Check for built-in files
-        builtin_available = os.path.exists('complete_local.json') and os.path.exists('complete_common.json')
-        
-        if builtin_available:
-            use_builtin = st.checkbox("Use built-in JSON files", value=True)
-        else:
-            use_builtin = False
-            st.info("💡 Place 'complete_local.json' and 'complete_common.json' in the app directory")
-        
-        if use_builtin and builtin_available:
-            if st.button("🔄 Load Built-in Agreements"):
-                with st.spinner("Loading agreements..."):
-                    local_agreement, common_agreement = load_builtin_agreements()
-                    
-                    if local_agreement and common_agreement:
-                        st.session_state.local_agreement = local_agreement
-                        st.session_state.common_agreement = common_agreement
-                        st.session_state.agreements_loaded = True
-                        st.success("✅ Agreements loaded successfully!")
-                        st.rerun()
-        else:
-            local_file = st.file_uploader("Local Agreement JSON", type="json", key="local")
-            common_file = st.file_uploader("Common Agreement JSON", type="json", key="common")
-            
-            if st.button("🔄 Load Uploaded Agreements"):
-                if local_file and common_file:
-                    with st.spinner("Loading agreements..."):
-                        local_agreement = load_agreement_from_file(local_file)
-                        common_agreement = load_agreement_from_file(common_file)
-                        
-                        if local_agreement and common_agreement:
-                            st.session_state.local_agreement = local_agreement
-                            st.session_state.common_agreement = common_agreement
-                            st.session_state.agreements_loaded = True
-                            st.success("✅ Agreements loaded successfully!")
-                            st.rerun()
-                else:
-                    st.error("Please upload both agreement files")
-        
-        # Stats
-        if st.session_state.agreements_loaded:
-            st.markdown("---")
-            st.header("📊 Status")
-            st.success("✅ Agreements Loaded")
-            st.info(f"🔍 Queries made: {st.session_state.total_queries}")
-            st.info(f"📋 Scope: {agreement_scope}")
-            
-            # Estimate context size
-            if agreement_scope == "Both Agreements (Complete Analysis)":
-                st.info("📄 Full agreements loaded")
-            else:
-                st.info(f"📄 {agreement_scope} loaded")
-        
-        st.markdown("---")
-        st.header("ℹ️ About")
-        st.markdown("""
-        **Complete Agreement Analysis**
-        - Full agreement context loaded
-        - GPT-4o-mini for cost efficiency
-        - Management-focused guidance
-        - Specific article citations
-        """)
+            pass
     
-    # Main interface
-    if not st.session_state.agreements_loaded:
-        st.info("👆 Please load the collective agreement files in the sidebar to begin.")
+    if not api_key:
+        st.error("🔑 OpenAI API key not found. Please set it in Streamlit secrets or environment variables.")
         st.stop()
+    
+    # Agreement Selection (prominent, no sidebar)
+    st.markdown("### 📋 Select Collective Agreement")
+    agreement_scope = st.radio(
+        "Which agreement do you want to search?",
+        ["Local Agreement Only", "Common Agreement Only", "Both Agreements"],
+        index=0,  # Default to Local Agreement
+        horizontal=True,
+        help="Local = Coast Mountain College specific terms | Common = BCGEU system-wide terms | Both = Complete search"
+    )
+    
+    st.markdown("---")
     
     # Display conversation history
     for message in st.session_state.messages:
@@ -317,6 +222,14 @@ def main():
     
     # Chat input
     if prompt := st.chat_input("Ask about collective agreement provisions..."):
+        # Load agreements when user submits question
+        with st.spinner("Loading agreements..."):
+            local_agreement, common_agreement = load_builtin_agreements()
+            
+            if not local_agreement or not common_agreement:
+                st.error("❌ Could not load agreement files. Please check that the JSON files are available.")
+                st.stop()
+        
         # Add user message
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
@@ -324,34 +237,34 @@ def main():
         
         # Generate response
         with st.chat_message("assistant"):
-            with st.spinner("Analyzing complete agreements and generating response..."):
+            with st.spinner(f"Analyzing {agreement_scope.lower()} and generating management guidance..."):
                 response = generate_response(
                     prompt, 
-                    st.session_state.local_agreement, 
-                    st.session_state.common_agreement, 
+                    local_agreement, 
+                    common_agreement, 
                     agreement_scope,
                     api_key
                 )
                 st.markdown(response)
                 st.session_state.messages.append({"role": "assistant", "content": response})
     
-    # Quick start questions based on scope
+    # Quick start questions based on scope (only show if no conversation yet)
     if len(st.session_state.messages) == 0:
         st.markdown("### 🚀 Quick Start Questions")
         
-        if agreement_scope in ["Both Agreements (Complete Analysis)", "Local Agreement Only"]:
+        if agreement_scope in ["Both Agreements", "Local Agreement Only"]:
             st.markdown("**Local Agreement Questions:**")
             col1, col2 = st.columns(2)
             
             with col1:
-                if st.button("📋 Faculty Workload Limits"):
+                if st.button("📋 Faculty Workload Limits", key="workload"):
                     st.session_state.messages.append({
                         "role": "user", 
                         "content": "What are the specific contact hour and class size limits for different programs? What authority does management have in workload assignment?"
                     })
                     st.rerun()
                     
-                if st.button("💰 Salary Scale Authority"):
+                if st.button("💰 Salary Scale Authority", key="salary"):
                     st.session_state.messages.append({
                         "role": "user", 
                         "content": "What control does management have over instructor salary placement and progression? Include specific rules and management rights."
@@ -359,33 +272,33 @@ def main():
                     st.rerun()
             
             with col2:
-                if st.button("📚 Professional Development Control"):
+                if st.button("📚 Professional Development Control", key="pd"):
                     st.session_state.messages.append({
                         "role": "user", 
                         "content": "What authority does management have over professional development funding and approval? What are the requirements and limitations?"
                     })
                     st.rerun()
                     
-                if st.button("🏫 Program Coordination Authority"):
+                if st.button("🏫 Program Coordination Authority", key="coord"):
                     st.session_state.messages.append({
                         "role": "user", 
                         "content": "What are management's rights in appointing and managing program coordinators? Include workload reduction and evaluation authority."
                     })
                     st.rerun()
         
-        if agreement_scope in ["Both Agreements (Complete Analysis)", "Common Agreement Only"]:
+        if agreement_scope in ["Both Agreements", "Common Agreement Only"]:
             st.markdown("**Common Agreement Questions:**")
             col1, col2 = st.columns(2)
             
             with col1:
-                if st.button("⚖️ Discipline & Dismissal Rights"):
+                if st.button("⚖️ Discipline & Dismissal Rights", key="discipline"):
                     st.session_state.messages.append({
                         "role": "user", 
                         "content": "What are management's rights regarding employee discipline and dismissal? Include burden of proof and procedural protections for management."
                     })
                     st.rerun()
                     
-                if st.button("📅 Grievance Time Limits"):
+                if st.button("📅 Grievance Time Limits", key="grievance"):
                     st.session_state.messages.append({
                         "role": "user", 
                         "content": "What time limits and procedural requirements protect management in grievance situations? Include deadlines and defenses."
@@ -393,19 +306,24 @@ def main():
                     st.rerun()
             
             with col2:
-                if st.button("🔄 Layoff Authority"):
+                if st.button("🔄 Layoff Authority", key="layoff"):
                     st.session_state.messages.append({
                         "role": "user", 
                         "content": "What authority does management have in layoff situations? What are the specific procedures and management rights?"
                     })
                     st.rerun()
                     
-                if st.button("📊 Job Security Provisions"):
+                if st.button("📊 Job Security Provisions", key="security"):
                     st.session_state.messages.append({
                         "role": "user", 
                         "content": "What flexibility does management have regarding job security, contracting out, and workforce management?"
                     })
                     st.rerun()
+    
+    # Simple stats at bottom
+    if st.session_state.total_queries > 0:
+        st.markdown("---")
+        st.caption(f"💬 Queries processed: {st.session_state.total_queries} | 🎯 Scope: {agreement_scope}")
 
 if __name__ == "__main__":
     main()
