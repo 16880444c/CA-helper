@@ -180,7 +180,7 @@ class CollectiveAgreementRAG:
         
         # Add embeddings to chunks
         for chunk, embedding in zip(self.chunks, embeddings):
-            chunk.embedding = np.array(embedding)
+            chunk.embedding = np.array(embedding, dtype=np.float32)
         
         # Cache the results
         self._save_embeddings_cache(cache_hash)
@@ -208,16 +208,26 @@ class CollectiveAgreementRAG:
     
     def _build_faiss_index(self):
         """Build FAISS index for fast similarity search"""
-        if not self.chunks or not self.chunks[0].embedding is not None:
+        if not self.chunks or self.chunks[0].embedding is None:
             return
         
-        embeddings = np.array([chunk.embedding for chunk in self.chunks])
+        # Convert embeddings to numpy array with proper dtype
+        embeddings_list = []
+        for chunk in self.chunks:
+            if chunk.embedding is not None:
+                embeddings_list.append(chunk.embedding)
+        
+        if not embeddings_list:
+            return
+            
+        embeddings = np.array(embeddings_list, dtype=np.float32)
         dimension = embeddings.shape[1]
         
         # Use IndexFlatIP for cosine similarity
         self.index = faiss.IndexFlatIP(dimension)
         
-        # Normalize embeddings for cosine similarity
+        # Ensure embeddings are contiguous and normalize
+        embeddings = np.ascontiguousarray(embeddings)
         faiss.normalize_L2(embeddings)
         self.index.add(embeddings)
     
@@ -233,7 +243,8 @@ class CollectiveAgreementRAG:
                 model="text-embedding-3-large",
                 input=[query]
             )
-            query_embedding = np.array([response.data[0].embedding])
+            query_embedding = np.array([response.data[0].embedding], dtype=np.float32)
+            query_embedding = np.ascontiguousarray(query_embedding)
             faiss.normalize_L2(query_embedding)
         except Exception as e:
             st.error(f"Error creating query embedding: {e}")
