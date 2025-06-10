@@ -167,6 +167,19 @@ def build_comprehensive_index(agreement, agreement_type):
                     
                     content_hierarchy['sections'][section_num] = section_info
             
+            # ALSO process direct subsections at article level (for cases like 17.8)
+            if 'subsections' in article_data and isinstance(article_data['subsections'], dict):
+                for sub_num, sub_data in article_data['subsections'].items():
+                    if isinstance(sub_data, dict):
+                        if 'title' in sub_data:
+                            content_hierarchy['all_text'].append(str(sub_data['title']).lower())
+                        if 'content' in sub_data:
+                            content_hierarchy['all_text'].append(str(sub_data['content']).lower())
+                        elif 'text' in sub_data:
+                            content_hierarchy['all_text'].append(str(sub_data['text']).lower())
+                    elif isinstance(sub_data, str):
+                        content_hierarchy['all_text'].append(sub_data.lower())
+            
             # Extract keywords from all content
             all_content = ' '.join(content_hierarchy['all_text'])
             
@@ -455,6 +468,22 @@ def extract_article_content_enhanced(agreement, article_num):
             content += f"{article_data['content']}\n\n"
         elif 'text' in article_data:
             content += f"{article_data['text']}\n\n"
+        
+        # Add direct subsections at article level (for cases like 17.8)
+        if 'subsections' in article_data and isinstance(article_data['subsections'], dict):
+            for subsection_num, subsection_data in article_data['subsections'].items():
+                if isinstance(subsection_data, dict):
+                    subsection_title = subsection_data.get('title', '')
+                    if subsection_title:
+                        content += f"  **{subsection_num}: {subsection_title}**\n"
+                    else:
+                        content += f"  **{subsection_num}:**\n"
+                    if 'content' in subsection_data:
+                        content += f"  {subsection_data['content']}\n\n"
+                    elif 'text' in subsection_data:
+                        content += f"  {subsection_data['text']}\n\n"
+                elif isinstance(subsection_data, str):
+                    content += f"  **{subsection_num}:** {subsection_data}\n\n"
         
         # Add sections with improved formatting
         if 'sections' in article_data and isinstance(article_data['sections'], dict):
