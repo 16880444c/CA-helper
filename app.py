@@ -16,6 +16,13 @@ except ImportError:
     st.error("Please install faiss: pip install faiss-cpu")
     st.stop()
 
+# Import the built-in agreements data
+try:
+    from agreements_data import get_common_agreement, get_local_agreement
+    BUILTIN_AGREEMENTS_AVAILABLE = True
+except ImportError:
+    BUILTIN_AGREEMENTS_AVAILABLE = False
+
 # Set page config
 st.set_page_config(
     page_title="Smart Collective Agreement Assistant",
@@ -251,6 +258,19 @@ def load_agreement_from_file(file) -> Dict:
         st.error(f"Error loading file: {e}")
         return None
 
+def load_builtin_agreements() -> Tuple[Dict, Dict]:
+    """Load the built-in agreements from the agreements_data module"""
+    if not BUILTIN_AGREEMENTS_AVAILABLE:
+        return None, None
+    
+    try:
+        common_agreement = get_common_agreement()
+        local_agreement = get_local_agreement()
+        return local_agreement, common_agreement
+    except Exception as e:
+        st.error(f"Error loading built-in agreements: {e}")
+        return None, None
+
 def generate_response(query: str, relevant_chunks: List[Tuple[DocumentChunk, float]], api_key: str) -> str:
     """Generate response using GPT with relevant context"""
     
@@ -385,18 +405,19 @@ def main():
         
         st.markdown("---")
         
-        # File uploads
-        st.header("📁 Upload Agreements")
+        # File uploads or use built-in
+        st.header("📁 Load Agreements")
         
-        local_file = st.file_uploader("Local Agreement JSON", type="json", key="local")
-        common_file = st.file_uploader("Common Agreement JSON", type="json", key="common")
+        if BUILTIN_AGREEMENTS_AVAILABLE:
+            use_builtin = st.checkbox("Use built-in agreements", value=True)
+        else:
+            use_builtin = False
+            st.info("💡 Built-in agreements not available. Please upload JSON files or add agreements_data.py")
         
-        if st.button("🔄 Process Agreements"):
-            if local_file and common_file:
-                with st.spinner("Loading and processing agreements..."):
-                    # Load agreements
-                    local_agreement = load_agreement_from_file(local_file)
-                    common_agreement = load_agreement_from_file(common_file)
+        if use_builtin and BUILTIN_AGREEMENTS_AVAILABLE:
+            if st.button("🔄 Load Built-in Agreements"):
+                with st.spinner("Loading built-in agreements..."):
+                    local_agreement, common_agreement = load_builtin_agreements()
                     
                     if local_agreement and common_agreement:
                         # Create chunks
@@ -415,9 +436,38 @@ def main():
                         else:
                             st.error("Failed to create embeddings")
                     else:
-                        st.error("Failed to load agreement files")
-            else:
-                st.error("Please upload both agreement files")
+                        st.error("Built-in agreements not available - please upload files")
+        else:
+            local_file = st.file_uploader("Local Agreement JSON", type="json", key="local")
+            common_file = st.file_uploader("Common Agreement JSON", type="json", key="common")
+            
+            if st.button("🔄 Process Uploaded Agreements"):
+                if local_file and common_file:
+                    with st.spinner("Loading and processing agreements..."):
+                        # Load agreements
+                        local_agreement = load_agreement_from_file(local_file)
+                        common_agreement = load_agreement_from_file(common_file)
+                        
+                        if local_agreement and common_agreement:
+                            # Create chunks
+                            rag = CollectiveAgreementRAG()
+                            local_chunks = rag.smart_chunk_json_agreement(local_agreement, "Local Agreement")
+                            common_chunks = rag.smart_chunk_json_agreement(common_agreement, "Common Agreement")
+                            
+                            rag.chunks = local_chunks + common_chunks
+                            
+                            # Create embeddings
+                            if rag.create_embeddings(api_key):
+                                st.session_state.rag_system = rag
+                                st.session_state.agreements_loaded = True
+                                st.success(f"✅ Processed {len(rag.chunks)} chunks successfully!")
+                                st.rerun()
+                            else:
+                                st.error("Failed to create embeddings")
+                        else:
+                            st.error("Failed to load agreement files")
+                else:
+                    st.error("Please upload both agreement files")
         
         # Stats
         if st.session_state.agreements_loaded:
