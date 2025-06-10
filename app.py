@@ -77,21 +77,31 @@ def load_agreements():
 def create_system_prompt(collective_agreement, common_agreement):
     """Create the system prompt for the HR advisor"""
     
-    # Extract key information for the prompt
-    collective_title = collective_agreement['agreement_metadata']['title']
-    common_title = common_agreement['agreement_metadata']['title']
+    # Safely extract metadata with fallbacks
+    collective_metadata = collective_agreement.get('agreement_metadata', {})
+    common_metadata = common_agreement.get('agreement_metadata', {})
+    
+    collective_title = collective_metadata.get('title', 'Local Collective Agreement')
+    common_title = common_metadata.get('title', 'Common Agreement')
+    
+    # Safely extract dates and parties
+    collective_dates = collective_metadata.get('effective_dates', {})
+    common_dates = common_metadata.get('effective_dates', {})
+    
+    collective_parties = collective_metadata.get('parties', {})
+    common_parties = common_metadata.get('parties', {})
     
     system_prompt = f"""You are a HR expert for Coast Mountain College with 15+ years of experience in collective agreement interpretation and employee relations. Your role is to provide STRONG, DEFINITIVE guidance that maximizes management's rights and authority under the collective agreements.
 
 You have access to two collective agreements:
 
 1. LOCAL AGREEMENT: "{collective_title}"
-   - Effective: {collective_agreement['agreement_metadata']['effective_dates']['start']} to {collective_agreement['agreement_metadata']['effective_dates']['end']}
-   - Between: {collective_agreement['agreement_metadata']['parties']['employer']} and {collective_agreement['agreement_metadata']['parties']['union']}
+   - Effective: {collective_dates.get('start', 'N/A')} to {collective_dates.get('end', 'N/A')}
+   - Between: {collective_parties.get('employer', 'Coast Mountain College')} and {collective_parties.get('union', 'Faculty Union')}
 
 2. COMMON AGREEMENT: "{common_title}" 
-   - Effective: {common_agreement['agreement_metadata']['effective_dates']['start']} to {common_agreement['agreement_metadata']['effective_dates']['end']}
-   - Between: {common_agreement['agreement_metadata']['parties']['employers']} and {common_agreement['agreement_metadata']['parties']['union']}
+   - Effective: {common_dates.get('start', 'N/A')} to {common_dates.get('end', 'N/A')}
+   - Between: {common_parties.get('employers', 'BC Colleges')} and {common_parties.get('union', 'Faculty Union')}
 
 CRITICAL INSTRUCTION - BE ASSERTIVE AND OPINIONATED:
 - Give STRONG, DEFINITIVE opinions, not wishy-washy suggestions
@@ -148,20 +158,29 @@ Remember: You are not a neutral arbitrator. You are MANAGEMENT'S advisor. Your j
 def create_essential_context(collective_agreement, common_agreement):
     """Create context with essential agreement information"""
     
-    # Get basic metadata
-    collective_title = collective_agreement['agreement_metadata']['title']
-    common_title = common_agreement['agreement_metadata']['title']
+    # Safely extract metadata
+    collective_metadata = collective_agreement.get('agreement_metadata', {})
+    common_metadata = common_agreement.get('agreement_metadata', {})
+    
+    collective_title = collective_metadata.get('title', 'Local Collective Agreement')
+    common_title = common_metadata.get('title', 'Common Agreement')
+    
+    collective_dates = collective_metadata.get('effective_dates', {})
+    common_dates = common_metadata.get('effective_dates', {})
+    
+    collective_parties = collective_metadata.get('parties', {})
+    common_parties = common_metadata.get('parties', {})
     
     context = f"""
 COLLECTIVE AGREEMENTS AVAILABLE:
 
 LOCAL AGREEMENT: "{collective_title}"
-- Effective: {collective_agreement['agreement_metadata']['effective_dates']['start']} to {collective_agreement['agreement_metadata']['effective_dates']['end']}
-- Parties: {collective_agreement['agreement_metadata']['parties']['employer']} and {collective_agreement['agreement_metadata']['parties']['union']}
+- Effective: {collective_dates.get('start', 'N/A')} to {collective_dates.get('end', 'N/A')}
+- Parties: {collective_parties.get('employer', 'Coast Mountain College')} and {collective_parties.get('union', 'Faculty Union')}
 
 COMMON AGREEMENT: "{common_title}" 
-- Effective: {common_agreement['agreement_metadata']['effective_dates']['start']} to {common_agreement['agreement_metadata']['effective_dates']['end']}
-- Parties: {common_agreement['agreement_metadata']['parties']['employers']} and {common_agreement['agreement_metadata']['parties']['union']}
+- Effective: {common_dates.get('start', 'N/A')} to {common_dates.get('end', 'N/A')}
+- Parties: {common_parties.get('employers', 'BC Colleges')} and {common_parties.get('union', 'Faculty Union')}
 
 KEY DEFINITIONS FROM LOCAL AGREEMENT:
 {json.dumps(collective_agreement.get('definitions', {}), indent=2)}
@@ -172,23 +191,37 @@ KEY DEFINITIONS FROM COMMON AGREEMENT:
 ARTICLE STRUCTURE - LOCAL AGREEMENT:
 """
     
-    # Add article titles and basic structure from local agreement
-    if 'articles' in collective_agreement:
+    # Safely add article structure from local agreement
+    if 'articles' in collective_agreement and isinstance(collective_agreement['articles'], dict):
         for article_num, article_data in collective_agreement['articles'].items():
-            context += f"Article {article_num}: {article_data.get('title', 'No Title')}\n"
-            if 'sections' in article_data:
-                for section_num, section_data in article_data['sections'].items():
-                    context += f"  - Section {section_num}: {section_data.get('title', 'No Title')}\n"
+            if isinstance(article_data, dict):
+                article_title = article_data.get('title', 'No Title')
+                context += f"Article {article_num}: {article_title}\n"
+                
+                if 'sections' in article_data and isinstance(article_data['sections'], dict):
+                    for section_num, section_data in article_data['sections'].items():
+                        if isinstance(section_data, dict):
+                            section_title = section_data.get('title', 'No Title')
+                            context += f"  - Section {section_num}: {section_title}\n"
+            else:
+                context += f"Article {article_num}: [Structure varies]\n"
     
     context += "\nARTICLE STRUCTURE - COMMON AGREEMENT:\n"
     
-    # Add article titles and basic structure from common agreement
-    if 'articles' in common_agreement:
+    # Safely add article structure from common agreement
+    if 'articles' in common_agreement and isinstance(common_agreement['articles'], dict):
         for article_num, article_data in common_agreement['articles'].items():
-            context += f"Article {article_num}: {article_data.get('title', 'No Title')}\n"
-            if 'sections' in article_data:
-                for section_num, section_data in article_data['sections'].items():
-                    context += f"  - Section {section_num}: {section_data.get('title', 'No Title')}\n"
+            if isinstance(article_data, dict):
+                article_title = article_data.get('title', 'No Title')
+                context += f"Article {article_num}: {article_title}\n"
+                
+                if 'sections' in article_data and isinstance(article_data['sections'], dict):
+                    for section_num, section_data in article_data['sections'].items():
+                        if isinstance(section_data, dict):
+                            section_title = section_data.get('title', 'No Title')
+                            context += f"  - Section {section_num}: {section_title}\n"
+            else:
+                context += f"Article {article_num}: [Structure varies]\n"
     
     context += """
 
