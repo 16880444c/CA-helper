@@ -155,42 +155,91 @@ Remember: You are not a neutral arbitrator. You are MANAGEMENT'S advisor. Your j
 
     return system_prompt
 
-def format_json_for_context(data, max_length=50000):
-    """Convert JSON data to a formatted string with length limit"""
-    try:
-        formatted = json.dumps(data, indent=2, ensure_ascii=False)
-        if len(formatted) > max_length:
-            # If too long, create a summary with key sections
-            summary = {
-                "metadata": data.get("agreement_metadata", {}),
-                "definitions": data.get("definitions", {}),
-                "articles": {}
-            }
-            
-            # Add article titles and key sections
-            articles = data.get("articles", {})
-            for article_num, article_data in articles.items():
-                if isinstance(article_data, dict):
-                    summary["articles"][article_num] = {
-                        "title": article_data.get("title", ""),
-                        "sections": {}
-                    }
-                    sections = article_data.get("sections", {})
-                    for section_num, section_data in sections.items():
-                        if isinstance(section_data, dict):
-                            summary["articles"][article_num]["sections"][section_num] = {
-                                "title": section_data.get("title", ""),
-                                "content": str(section_data.get("content", ""))[:200] + "..." if len(str(section_data.get("content", ""))) > 200 else section_data.get("content", "")
-                            }
-            
-            formatted = json.dumps(summary, indent=2, ensure_ascii=False)
+def search_relevant_content(query, collective_agreement, common_agreement):
+    """Search for relevant content based on the user's query"""
+    relevant_content = {}
+    query_lower = query.lower()
+    
+    # Keywords to search for specific topics
+    keywords = {
+        'discipline': ['discipline', 'dismissal', 'suspension', 'termination', 'just cause', 'burden of proof'],
+        'grievance': ['grievance', 'arbitration', 'complaint', 'dispute', 'time limit'],
+        'layoff': ['layoff', 'recall', 'seniority', 'bumping', 'severance'],
+        'workload': ['workload', 'hours', 'contact', 'teaching', 'assignment'],
+        'leave': ['leave', 'vacation', 'sick', 'bereavement', 'parental'],
+        'salary': ['salary', 'wage', 'pay', 'increment', 'allowance'],
+        'benefits': ['benefit', 'health', 'dental', 'insurance', 'pension'],
+        'evaluation': ['evaluation', 'appraisal', 'performance', 'probation'],
+        'harassment': ['harassment', 'discrimination', 'sexual'],
+        'safety': ['safety', 'health', 'accident', 'injury']
+    }
+    
+    # Determine topic based on query
+    detected_topics = []
+    for topic, topic_keywords in keywords.items():
+        if any(keyword in query_lower for keyword in topic_keywords):
+            detected_topics.append(topic)
+    
+    # Search both agreements
+    for agreement_name, agreement in [('Local Agreement', collective_agreement), ('Common Agreement', common_agreement)]:
         
-        return formatted
-    except Exception as e:
-        return f"Error formatting JSON: {str(e)}"
+        # Always include definitions
+        if 'definitions' in agreement:
+            relevant_content[f'{agreement_name} - Definitions'] = agreement['definitions']
+        
+        # Search articles
+        articles = agreement.get('articles', {})
+        for article_num, article_data in articles.items():
+            if isinstance(article_data, dict):
+                article_title = article_data.get('title', '').lower()
+                
+                # Check if this article is relevant
+                include_article = False
+                
+                # Include based on detected topics
+                for topic in detected_topics:
+                    if topic == 'discipline' and any(word in article_title for word in ['dismissal', 'suspension', 'discipline']):
+                        include_article = True
+                    elif topic == 'grievance' and any(word in article_title for word in ['grievance', 'arbitration']):
+                        include_article = True
+                    elif topic == 'layoff' and any(word in article_title for word in ['seniority', 'layoff', 'recall', 'job security']):
+                        include_article = True
+                    elif topic == 'workload' and any(word in article_title for word in ['workload', 'hours']):
+                        include_article = True
+                    elif topic == 'leave' and any(word in article_title for word in ['leave', 'vacation', 'parental']):
+                        include_article = True
+                    elif topic == 'salary' and any(word in article_title for word in ['salary', 'wage', 'payment']):
+                        include_article = True
+                    elif topic == 'benefits' and any(word in article_title for word in ['health', 'welfare', 'benefit', 'pension']):
+                        include_article = True
+                    elif topic == 'evaluation' and any(word in article_title for word in ['evaluation', 'skill']):
+                        include_article = True
+                    elif topic == 'harassment' and any(word in article_title for word in ['harassment']):
+                        include_article = True
+                    elif topic == 'safety' and any(word in article_title for word in ['safety', 'health']):
+                        include_article = True
+                
+                # Also check for direct keyword matches in article title
+                if any(keyword in article_title for topic_keywords in keywords.values() for keyword in topic_keywords if keyword in query_lower):
+                    include_article = True
+                
+                if include_article:
+                    relevant_content[f'{agreement_name} - Article {article_num}: {article_data.get("title", "")}'] = article_data
+        
+        # Search appendices if relevant
+        appendices = agreement.get('appendices', {})
+        for appendix_name, appendix_data in appendices.items():
+            appendix_title = str(appendix_data.get('title', '')).lower()
+            if any(keyword in appendix_title for topic_keywords in keywords.values() for keyword in topic_keywords if keyword in query_lower):
+                relevant_content[f'{agreement_name} - {appendix_name}'] = appendix_data
+    
+    return relevant_content
 
-def create_complete_context(collective_agreement, common_agreement):
-    """Create comprehensive context with complete agreement content"""
+def create_dynamic_context(query, collective_agreement, common_agreement):
+    """Create context with relevant content based on the query"""
+    
+    # Get relevant content
+    relevant_content = search_relevant_content(query, collective_agreement, common_agreement)
     
     # Safely extract metadata
     collective_metadata = collective_agreement.get('agreement_metadata', {})
@@ -206,32 +255,39 @@ def create_complete_context(collective_agreement, common_agreement):
     common_parties = common_metadata.get('parties', {})
     
     context = f"""
-COMPLETE COLLECTIVE AGREEMENTS AVAILABLE:
+COLLECTIVE AGREEMENTS AVAILABLE:
 
-=== LOCAL AGREEMENT ===
-Title: "{collective_title}"
-Effective: {collective_dates.get('start', 'N/A')} to {collective_dates.get('end', 'N/A')}
-Parties: {collective_parties.get('employer', 'Coast Mountain College')} and {collective_parties.get('union', 'Faculty Union')}
+LOCAL AGREEMENT: "{collective_title}"
+- Effective: {collective_dates.get('start', 'N/A')} to {collective_dates.get('end', 'N/A')}
+- Parties: {collective_parties.get('employer', 'Coast Mountain College')} and {collective_parties.get('union', 'Faculty Union')}
 
-FULL LOCAL AGREEMENT CONTENT:
-{format_json_for_context(collective_agreement, 25000)}
+COMMON AGREEMENT: "{common_title}" 
+- Effective: {common_dates.get('start', 'N/A')} to {common_dates.get('end', 'N/A')}
+- Parties: {common_parties.get('employers', 'BC Colleges')} and {common_parties.get('union', 'Faculty Union')}
 
-=== COMMON AGREEMENT ===
-Title: "{common_title}" 
-Effective: {common_dates.get('start', 'N/A')} to {common_dates.get('end', 'N/A')}
-Parties: {common_parties.get('employers', 'BC Colleges')} and {common_parties.get('union', 'Faculty Union')}
+RELEVANT CONTENT FOR YOUR QUERY:
 
-FULL COMMON AGREEMENT CONTENT:
-{format_json_for_context(common_agreement, 25000)}
+"""
+    
+    # Add relevant content
+    for section_name, section_content in relevant_content.items():
+        context += f"\n=== {section_name} ===\n"
+        try:
+            if isinstance(section_content, dict):
+                context += json.dumps(section_content, indent=2, ensure_ascii=False)[:3000] + "\n"
+            else:
+                context += str(section_content)[:3000] + "\n"
+        except:
+            context += "Content formatting error\n"
+    
+    context += """
 
-IMPORTANT INSTRUCTIONS:
-1. You have access to the COMPLETE content of both agreements above
-2. When responding to questions, search through ALL the content provided
-3. Reference specific articles, sections, and clauses accurately
-4. Provide proper citations in the format [Agreement Type - Article X.X: Title]
-5. Focus on management rights and authority
-6. Include relevant quotes from the agreement text to support your positions
-7. If you need specific content from any section, it should be available in the content provided above
+IMPORTANT: You have access to the complete content of both agreements. When responding to questions:
+1. Reference specific articles, sections, and clauses accurately using the content provided above
+2. Provide proper citations in the format [Agreement Type - Article X.X: Title]
+3. Focus on management rights and authority
+4. Include relevant quotes from the agreement text to support your positions
+5. If you need additional content not shown above, indicate which specific articles/sections you need
 """
     
     return context
@@ -242,16 +298,16 @@ def get_ai_response(user_message, collective_agreement, common_agreement, api_ke
         client = openai.OpenAI(api_key=api_key)
         
         system_prompt = create_system_prompt(collective_agreement, common_agreement)
-        # Use complete agreement content
-        agreement_context = create_complete_context(collective_agreement, common_agreement)
+        # Use dynamic context based on the query
+        agreement_context = create_dynamic_context(user_message, collective_agreement, common_agreement)
         
         # Prepare messages for the API
         messages = [
             {"role": "system", "content": system_prompt + "\n\n" + agreement_context}
         ]
         
-        # Add conversation history (limit to last 6 exchanges to save tokens)
-        recent_messages = st.session_state.messages[-12:] if len(st.session_state.messages) > 12 else st.session_state.messages
+        # Add conversation history (limit to last 4 exchanges to save tokens)
+        recent_messages = st.session_state.messages[-8:] if len(st.session_state.messages) > 8 else st.session_state.messages
         for msg in recent_messages:
             messages.append({"role": msg["role"], "content": msg["content"]})
         
@@ -259,9 +315,9 @@ def get_ai_response(user_message, collective_agreement, common_agreement, api_ke
         messages.append({"role": "user", "content": user_message})
         
         response = client.chat.completions.create(
-            model="gpt-4", # Using GPT-4 for better handling of complex content
+            model="gpt-4-turbo-preview",  # Using latest GPT-4 with larger context window
             messages=messages,
-            max_tokens=1500,  # Increased for more detailed responses
+            max_tokens=1500,
             temperature=0.3
         )
         
@@ -309,7 +365,7 @@ def main():
         
         **Perspective**: Management rights and authority
         **Citations**: All responses include specific agreement references
-        **Content**: Complete agreement text is loaded and available for analysis
+        **Smart Loading**: Relevant sections loaded dynamically based on your query
         """)
         
         if st.button("🆕 New Topic"):
@@ -352,7 +408,7 @@ def main():
         
         # Get AI response
         with st.chat_message("assistant"):
-            with st.spinner("Analyzing complete collective agreements..."):
+            with st.spinner("Analyzing relevant agreement sections..."):
                 response = get_ai_response(
                     prompt, 
                     st.session_state.collective_agreement,
