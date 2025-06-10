@@ -4,8 +4,15 @@ import openai
 from datetime import datetime
 import re
 import os
-from fuzzywuzzy import fuzz
-from fuzzywuzzy import process
+
+# Try to import fuzzywuzzy, fall back to difflib if not available
+try:
+    from fuzzywuzzy import fuzz
+    FUZZYWUZZY_AVAILABLE = True
+except ImportError:
+    from difflib import SequenceMatcher
+    FUZZYWUZZY_AVAILABLE = False
+    st.warning("⚠️ FuzzyWuzzy not available. Using built-in matching (less accurate). Install with: pip install fuzzywuzzy[speedup]")
 
 # Set page config
 st.set_page_config(
@@ -20,6 +27,32 @@ if 'messages' not in st.session_state:
 
 if 'agreements_loaded' not in st.session_state:
     st.session_state.agreements_loaded = False
+
+def similarity_ratio(a, b):
+    """Calculate similarity ratio between two strings"""
+    if FUZZYWUZZY_AVAILABLE:
+        return fuzz.ratio(a, b)
+    else:
+        return SequenceMatcher(None, a.lower(), b.lower()).ratio() * 100
+
+def partial_ratio(a, b):
+    """Calculate partial similarity ratio between two strings"""
+    if FUZZYWUZZY_AVAILABLE:
+        return fuzz.partial_ratio(a, b)
+    else:
+        a, b = a.lower(), b.lower()
+        if len(a) <= len(b):
+            shorter, longer = a, b
+        else:
+            shorter, longer = b, a
+        
+        best_ratio = 0
+        for i in range(len(longer) - len(shorter) + 1):
+            substring = longer[i:i + len(shorter)]
+            ratio = SequenceMatcher(None, shorter, substring).ratio() * 100
+            best_ratio = max(best_ratio, ratio)
+        
+        return best_ratio
 
 def load_agreements():
     """Load the collective agreements from JSON files"""
@@ -143,7 +176,10 @@ def build_comprehensive_index(agreement, agreement_type):
             workplace_terms = ['discipline', 'dismissal', 'grievance', 'layoff', 'recall', 'seniority', 
                              'workload', 'vacation', 'leave', 'sick', 'benefits', 'salary', 'overtime',
                              'holiday', 'evaluation', 'harassment', 'union', 'safety', 'pension',
-                             'probation', 'termination', 'suspension', 'arbitration', 'hours']
+                             'probation', 'termination', 'suspension', 'arbitration', 'hours',
+                             'steward', 'representative', 'collective bargaining', 'just cause',
+                             'burden of proof', 'time limit', 'notice', 'appeal', 'classification',
+                             'regularization', 'contracting out', 'job security', 'technological change']
             
             for term in workplace_terms:
                 if term in all_content:
@@ -176,9 +212,9 @@ def calculate_article_relevance(user_message, article_info, article_num):
         if term in article_info['title']:
             title_score += 15
             matching_factors.append(f"Title match: {term}")
-        elif fuzz.partial_ratio(term, article_info['title']) > 80:
+        elif partial_ratio(term, article_info['title']) > 80:
             title_score += 10
-            matching_factors.append(f"Fuzzy title match: {term}")
+            matching_factors.append(f"Similar title match: {term}")
     score += title_score
     
     # Keyword matching (medium-high priority)
@@ -188,7 +224,7 @@ def calculate_article_relevance(user_message, article_info, article_num):
             if keyword == term:
                 keyword_score += 12
                 matching_factors.append(f"Exact keyword: {keyword}")
-            elif fuzz.ratio(keyword, term) > 85:
+            elif similarity_ratio(keyword, term) > 85:
                 keyword_score += 8
                 matching_factors.append(f"Similar keyword: {keyword}")
     score += keyword_score
@@ -205,17 +241,21 @@ def calculate_article_relevance(user_message, article_info, article_num):
     # Semantic relationships (lower priority but important for comprehensive coverage)
     semantic_bonus = 0
     semantic_relationships = {
-        'discipline': ['misconduct', 'performance', 'termination', 'suspension', 'dismissal'],
-        'grievance': ['complaint', 'dispute', 'arbitration', 'resolution'],
-        'layoff': ['reduction', 'downsizing', 'redundancy', 'restructuring'],
-        'leave': ['vacation', 'absence', 'time off', 'holiday'],
-        'salary': ['wage', 'pay', 'compensation', 'remuneration'],
-        'workload': ['hours', 'schedule', 'assignment', 'teaching load'],
-        'benefits': ['health', 'dental', 'insurance', 'pension'],
-        'evaluation': ['appraisal', 'review', 'assessment', 'performance'],
-        'union': ['steward', 'representative', 'collective bargaining'],
-        'safety': ['health', 'hazard', 'injury', 'workplace'],
-        'probation': ['trial period', 'initial employment', 'temporary']
+        'discipline': ['misconduct', 'performance', 'termination', 'suspension', 'dismissal', 'just cause', 'burden'],
+        'grievance': ['complaint', 'dispute', 'arbitration', 'resolution', 'appeal', 'steward'],
+        'layoff': ['reduction', 'downsizing', 'redundancy', 'restructuring', 'job security'],
+        'leave': ['vacation', 'absence', 'time off', 'holiday', 'sick', 'bereavement'],
+        'salary': ['wage', 'pay', 'compensation', 'remuneration', 'increment'],
+        'workload': ['hours', 'schedule', 'assignment', 'teaching load', 'contact hours'],
+        'benefits': ['health', 'dental', 'insurance', 'pension', 'welfare'],
+        'evaluation': ['appraisal', 'review', 'assessment', 'performance', 'probation'],
+        'union': ['steward', 'representative', 'collective bargaining', 'dues', 'recognition'],
+        'safety': ['health', 'hazard', 'injury', 'workplace', 'occupational'],
+        'probation': ['trial period', 'initial employment', 'temporary', 'new employee'],
+        'harassment': ['discrimination', 'sexual', 'personal', 'workplace', 'complaint'],
+        'seniority': ['length of service', 'continuous service', 'recall', 'bumping'],
+        'overtime': ['extra hours', 'time and half', 'callout', 'premium'],
+        'technological': ['change', 'automation', 'equipment', 'methods']
     }
     
     for main_term, related_terms in semantic_relationships.items():
@@ -225,6 +265,12 @@ def calculate_article_relevance(user_message, article_info, article_num):
                     semantic_bonus += 5
                     matching_factors.append(f"Semantic relationship: {term} -> {main_term}")
     score += semantic_bonus
+    
+    # Boost score for articles that contain multiple search terms
+    terms_found = sum(1 for term in search_terms if term in article_info['full_content'])
+    if terms_found > 1:
+        score += terms_found * 3
+        matching_factors.append(f"Multiple terms found: {terms_found}")
     
     return score, matching_factors
 
@@ -598,7 +644,9 @@ def main():
         
         st.markdown("---")
         st.header("Enhanced Features")
-        st.markdown("""
+        fuzzy_status = "✅ FuzzyWuzzy (Advanced)" if FUZZYWUZZY_AVAILABLE else "⚠️ Built-in (Basic)"
+        
+        st.markdown(f"""
         **Comprehensive Analysis:**
         - Multi-article synthesis from both agreements
         - Balanced coverage preventing single-article focus
@@ -606,7 +654,7 @@ def main():
         - Enhanced relevance scoring with semantic understanding
         
         **Smart Content Discovery:**
-        - Fuzzy matching for partial terms
+        - Fuzzy matching: {fuzzy_status}
         - Keyword relationship mapping
         - Content frequency analysis
         - Procedural safeguard identification
@@ -616,6 +664,15 @@ def main():
         - Overlapping provision analysis
         - Risk mitigation strategies
         - Tactical implementation advice
+        
+        **Installation:**
+        To enable advanced fuzzy matching, create `requirements.txt`:
+        ```
+        streamlit
+        openai
+        fuzzywuzzy[speedup]
+        python-Levenshtein
+        ```
         """)
         
         if st.button("🆕 New Topic"):
