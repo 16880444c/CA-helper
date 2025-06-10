@@ -23,21 +23,6 @@ if 'agreements_loaded' not in st.session_state:
 
 def load_agreements():
     """Load the collective agreements from JSON files"""
-    # Debug: Show current working directory and files
-    current_dir = os.getcwd()
-    files_in_dir = os.listdir(current_dir)
-    
-    st.write(f"**Debug Info:**")
-    st.write(f"Current working directory: `{current_dir}`")
-    st.write(f"Files in directory: {files_in_dir}")
-    
-    # Check if files exist
-    local_exists = os.path.exists('complete_local.json')
-    common_exists = os.path.exists('complete_common.json')
-    
-    st.write(f"complete_local.json exists: {local_exists}")
-    st.write(f"complete_common.json exists: {common_exists}")
-    
     try:
         # Try to read the files
         with open('complete_local.json', 'r', encoding='utf-8') as f:
@@ -46,14 +31,13 @@ def load_agreements():
         with open('complete_common.json', 'r', encoding='utf-8') as f:
             common_agreement = json.load(f)
         
-        st.success("✅ Files loaded successfully from directory!")
         return collective_agreement, common_agreement
         
     except FileNotFoundError as e:
-        st.error(f"FileNotFoundError: {str(e)}")
+        st.error(f"Could not find agreement files: {str(e)}")
         
         # Show file uploader as alternative
-        st.markdown("### Alternative: Upload Files")
+        st.markdown("### Upload Agreement Files")
         col1, col2 = st.columns(2)
         
         with col1:
@@ -65,7 +49,6 @@ def load_agreements():
             try:
                 collective_agreement = json.load(local_file)
                 common_agreement = json.load(common_file)
-                st.success("✅ Files loaded successfully from upload!")
                 return collective_agreement, common_agreement
             except Exception as e:
                 st.error(f"Error loading uploaded files: {str(e)}")
@@ -76,8 +59,8 @@ def load_agreements():
         st.error(f"Unexpected error: {str(e)}")
         return None, None
 
-def build_searchable_index(agreement, agreement_type):
-    """Build a searchable index of all content in the agreement"""
+def build_comprehensive_index(agreement, agreement_type):
+    """Build a comprehensive searchable index with detailed content mapping"""
     index = {}
     
     if 'articles' not in agreement:
@@ -88,168 +71,237 @@ def build_searchable_index(agreement, agreement_type):
     for article_num, article_data in articles.items():
         if isinstance(article_data, dict):
             title = article_data.get('title', '').lower()
-            content_parts = []
             
-            # Add title
-            content_parts.append(title)
-            
-            # Add article-level content
-            if 'content' in article_data:
-                content_parts.append(str(article_data['content']).lower())
-            elif 'text' in article_data:
-                content_parts.append(str(article_data['text']).lower())
-            
-            # Add sections content
-            if 'sections' in article_data:
-                sections = article_data['sections']
-                if isinstance(sections, dict):
-                    for section_num, section_data in sections.items():
-                        if isinstance(section_data, dict):
-                            if 'title' in section_data:
-                                content_parts.append(str(section_data['title']).lower())
-                            if 'content' in section_data:
-                                content_parts.append(str(section_data['content']).lower())
-                            elif 'text' in section_data:
-                                content_parts.append(str(section_data['text']).lower())
-                            
-                            # Add subsections
-                            if 'subsections' in section_data:
-                                subsections = section_data['subsections']
-                                if isinstance(subsections, dict):
-                                    for subsection_num, subsection_data in subsections.items():
-                                        if isinstance(subsection_data, dict):
-                                            if 'title' in subsection_data:
-                                                content_parts.append(str(subsection_data['title']).lower())
-                                            if 'content' in subsection_data:
-                                                content_parts.append(str(subsection_data['content']).lower())
-                                            elif 'text' in subsection_data:
-                                                content_parts.append(str(subsection_data['text']).lower())
-                                        elif isinstance(subsection_data, str):
-                                            content_parts.append(subsection_data.lower())
-                        elif isinstance(section_data, str):
-                            content_parts.append(section_data.lower())
-            
-            # Combine all content
-            full_content = ' '.join(content_parts)
-            
-            index[article_num] = {
+            # Collect all content hierarchically
+            content_hierarchy = {
                 'title': title,
-                'content': full_content,
-                'agreement_type': agreement_type
+                'main_content': '',
+                'sections': {},
+                'all_text': [],
+                'keywords': set()
             }
+            
+            # Add title to searchable text
+            content_hierarchy['all_text'].append(title)
+            
+            # Extract main article content
+            if 'content' in article_data:
+                main_content = str(article_data['content']).lower()
+                content_hierarchy['main_content'] = main_content
+                content_hierarchy['all_text'].append(main_content)
+            elif 'text' in article_data:
+                main_content = str(article_data['text']).lower()
+                content_hierarchy['main_content'] = main_content
+                content_hierarchy['all_text'].append(main_content)
+            
+            # Process sections
+            if 'sections' in article_data and isinstance(article_data['sections'], dict):
+                for section_num, section_data in article_data['sections'].items():
+                    section_info = {'content': '', 'subsections': {}}
+                    
+                    if isinstance(section_data, dict):
+                        # Section title
+                        if 'title' in section_data:
+                            section_title = str(section_data['title']).lower()
+                            content_hierarchy['all_text'].append(section_title)
+                            section_info['title'] = section_title
+                        
+                        # Section content
+                        if 'content' in section_data:
+                            section_content = str(section_data['content']).lower()
+                            content_hierarchy['all_text'].append(section_content)
+                            section_info['content'] = section_content
+                        elif 'text' in section_data:
+                            section_content = str(section_data['text']).lower()
+                            content_hierarchy['all_text'].append(section_content)
+                            section_info['content'] = section_content
+                        
+                        # Process subsections
+                        if 'subsections' in section_data and isinstance(section_data['subsections'], dict):
+                            for sub_num, sub_data in section_data['subsections'].items():
+                                if isinstance(sub_data, dict):
+                                    if 'title' in sub_data:
+                                        content_hierarchy['all_text'].append(str(sub_data['title']).lower())
+                                    if 'content' in sub_data:
+                                        content_hierarchy['all_text'].append(str(sub_data['content']).lower())
+                                    elif 'text' in sub_data:
+                                        content_hierarchy['all_text'].append(str(sub_data['text']).lower())
+                                elif isinstance(sub_data, str):
+                                    content_hierarchy['all_text'].append(sub_data.lower())
+                    elif isinstance(section_data, str):
+                        content_hierarchy['all_text'].append(section_data.lower())
+                        section_info['content'] = section_data.lower()
+                    
+                    content_hierarchy['sections'][section_num] = section_info
+            
+            # Extract keywords from all content
+            all_content = ' '.join(content_hierarchy['all_text'])
+            
+            # Generate keywords from content
+            keywords = set()
+            # Common workplace terms
+            workplace_terms = ['discipline', 'dismissal', 'grievance', 'layoff', 'recall', 'seniority', 
+                             'workload', 'vacation', 'leave', 'sick', 'benefits', 'salary', 'overtime',
+                             'holiday', 'evaluation', 'harassment', 'union', 'safety', 'pension',
+                             'probation', 'termination', 'suspension', 'arbitration', 'hours']
+            
+            for term in workplace_terms:
+                if term in all_content:
+                    keywords.add(term)
+            
+            content_hierarchy['keywords'] = keywords
+            content_hierarchy['full_content'] = all_content
+            content_hierarchy['agreement_type'] = agreement_type
+            
+            index[article_num] = content_hierarchy
     
     return index
 
-def identify_relevant_articles_improved(user_message, collective_agreement, common_agreement):
-    """Improved article identification using content search and fuzzy matching"""
-    
-    # Build searchable indexes
-    local_index = build_searchable_index(collective_agreement, 'local')
-    common_index = build_searchable_index(common_agreement, 'common')
-    
+def calculate_article_relevance(user_message, article_info, article_num):
+    """Calculate relevance score for an article based on multiple factors"""
     user_message_lower = user_message.lower()
-    relevant_articles = set()
+    search_terms = [term for term in user_message_lower.split() if len(term) > 2]
     
-    # Search for direct article number references
-    article_pattern = r'article\s*(\d+(?:\.\d+)?)'
-    matches = re.findall(article_pattern, user_message_lower)
-    relevant_articles.update(matches)
+    score = 0
+    matching_factors = []
     
-    # Keyword-based scoring for each article
-    search_terms = user_message_lower.split()
+    # Direct article number reference (highest priority)
+    if f"article {article_num}" in user_message_lower or f"article{article_num}" in user_message_lower:
+        score += 100
+        matching_factors.append(f"Direct article reference: {article_num}")
     
-    # Score articles based on content relevance
-    article_scores = {}
+    # Title matching (high priority)
+    title_score = 0
+    for term in search_terms:
+        if term in article_info['title']:
+            title_score += 15
+            matching_factors.append(f"Title match: {term}")
+        elif fuzz.partial_ratio(term, article_info['title']) > 80:
+            title_score += 10
+            matching_factors.append(f"Fuzzy title match: {term}")
+    score += title_score
     
-    # Search local agreement
-    for article_num, article_info in local_index.items():
-        score = 0
+    # Keyword matching (medium-high priority)
+    keyword_score = 0
+    for keyword in article_info['keywords']:
         for term in search_terms:
-            if len(term) > 2:  # Only consider terms longer than 2 characters
-                # Title gets higher weight
-                if term in article_info['title']:
-                    score += 10
-                # Content search
-                score += article_info['content'].count(term) * 2
-                
-                # Fuzzy matching for titles
-                if fuzz.partial_ratio(term, article_info['title']) > 70:
-                    score += 5
-        
-        if score > 0:
-            article_scores[f"local_{article_num}"] = score
+            if keyword == term:
+                keyword_score += 12
+                matching_factors.append(f"Exact keyword: {keyword}")
+            elif fuzz.ratio(keyword, term) > 85:
+                keyword_score += 8
+                matching_factors.append(f"Similar keyword: {keyword}")
+    score += keyword_score
     
-    # Search common agreement
-    for article_num, article_info in common_index.items():
-        score = 0
-        for term in search_terms:
-            if len(term) > 2:
-                if term in article_info['title']:
-                    score += 10
-                score += article_info['content'].count(term) * 2
-                
-                if fuzz.partial_ratio(term, article_info['title']) > 70:
-                    score += 5
-        
-        if score > 0:
-            article_scores[f"common_{article_num}"] = score
+    # Content frequency (medium priority)
+    content_score = 0
+    for term in search_terms:
+        frequency = article_info['full_content'].count(term)
+        if frequency > 0:
+            content_score += min(frequency * 3, 15)  # Cap at 15 to prevent single-term dominance
+            matching_factors.append(f"Content frequency for '{term}': {frequency}")
+    score += content_score
     
-    # Get top scoring articles
-    top_articles = sorted(article_scores.items(), key=lambda x: x[1], reverse=True)[:10]
-    
-    for article_key, score in top_articles:
-        agreement_type, article_num = article_key.split('_', 1)
-        relevant_articles.add(article_num)
-    
-    # Enhanced keyword mappings based on actual agreement content
-    enhanced_mappings = {
-        'discipline': ['10', '11', '30'],  # Based on actual articles
-        'dismissal': ['10'],
-        'suspension': ['10'],
-        'grievance': ['8'],
-        'arbitration': ['9'],
-        'layoff': ['11', '13'],
-        'recall': ['11'],
-        'seniority': ['11'],
-        'workload': ['31'],
-        'vacation': ['17'],
-        'leave': ['19', '20'],  # Special and other leaves, parental leave
-        'sick': ['18'],
-        'benefits': ['23', '9'],  # Local and common health and welfare
-        'salary': ['25', '12'],  # Local payment and common salaries
-        'overtime': ['15'],
-        'holidays': ['16'],
-        'evaluation': ['33'],
-        'professional development': ['32'],
-        'harassment': ['1', '2'],  # Local and common harassment articles
-        'union': ['2', '3'],  # Union recognition and security
-        'hours': ['14'],
-        'safety': ['21'],
-        'pension': ['10'],  # Common agreement pensions
-        'copyright': ['5'],  # Common agreement
-        'job security': ['6', '13'],  # Common and local
-        'technological change': ['22'],
-        'classification': ['26'],
-        'reclassification': ['26'],
-        'regularization': ['26', '6'],
-        'contracting out': ['6'],  # Common agreement
-        'international education': ['14'],  # Common agreement
-        'early retirement': ['11', '25'],  # Common and local
+    # Semantic relationships (lower priority but important for comprehensive coverage)
+    semantic_bonus = 0
+    semantic_relationships = {
+        'discipline': ['misconduct', 'performance', 'termination', 'suspension', 'dismissal'],
+        'grievance': ['complaint', 'dispute', 'arbitration', 'resolution'],
+        'layoff': ['reduction', 'downsizing', 'redundancy', 'restructuring'],
+        'leave': ['vacation', 'absence', 'time off', 'holiday'],
+        'salary': ['wage', 'pay', 'compensation', 'remuneration'],
+        'workload': ['hours', 'schedule', 'assignment', 'teaching load'],
+        'benefits': ['health', 'dental', 'insurance', 'pension'],
+        'evaluation': ['appraisal', 'review', 'assessment', 'performance'],
+        'union': ['steward', 'representative', 'collective bargaining'],
+        'safety': ['health', 'hazard', 'injury', 'workplace'],
+        'probation': ['trial period', 'initial employment', 'temporary']
     }
     
-    # Apply enhanced keyword mappings
-    for topic, article_nums in enhanced_mappings.items():
-        if any(keyword in user_message_lower for keyword in topic.split()):
-            relevant_articles.update(article_nums)
+    for main_term, related_terms in semantic_relationships.items():
+        if main_term in article_info['keywords']:
+            for term in search_terms:
+                if term in related_terms:
+                    semantic_bonus += 5
+                    matching_factors.append(f"Semantic relationship: {term} -> {main_term}")
+    score += semantic_bonus
     
-    # Always include essential articles for context
-    essential_articles = ['1', '2', '6', '8', '10']  # Core rights and procedures
-    relevant_articles.update(essential_articles)
-    
-    return list(relevant_articles)
+    return score, matching_factors
 
-def extract_article_content(agreement, article_num):
-    """Extract the full content of a specific article"""
+def identify_relevant_articles_comprehensive(user_message, collective_agreement, common_agreement):
+    """Comprehensive article identification that ensures balanced coverage"""
+    
+    # Build indexes
+    local_index = build_comprehensive_index(collective_agreement, 'local')
+    common_index = build_comprehensive_index(common_agreement, 'common')
+    
+    # Calculate scores for all articles
+    article_scores = {}
+    
+    # Score local agreement articles
+    for article_num, article_info in local_index.items():
+        score, factors = calculate_article_relevance(user_message, article_info, article_num)
+        if score > 0:
+            article_scores[f"local_{article_num}"] = {
+                'score': score,
+                'factors': factors,
+                'type': 'local',
+                'num': article_num
+            }
+    
+    # Score common agreement articles
+    for article_num, article_info in common_index.items():
+        score, factors = calculate_article_relevance(user_message, article_info, article_num)
+        if score > 0:
+            article_scores[f"common_{article_num}"] = {
+                'score': score,
+                'factors': factors,
+                'type': 'common',
+                'num': article_num
+            }
+    
+    # Sort by score and select balanced representation
+    sorted_articles = sorted(article_scores.items(), key=lambda x: x[1]['score'], reverse=True)
+    
+    selected_articles = set()
+    local_count = 0
+    common_count = 0
+    max_per_agreement = 8  # Prevent one agreement from dominating
+    
+    # Select top articles with balanced representation
+    for article_key, article_data in sorted_articles:
+        if len(selected_articles) >= 15:  # Total limit
+            break
+            
+        if article_data['type'] == 'local' and local_count < max_per_agreement:
+            selected_articles.add(article_data['num'])
+            local_count += 1
+        elif article_data['type'] == 'common' and common_count < max_per_agreement:
+            selected_articles.add(article_data['num'])
+            common_count += 1
+    
+    # Always include essential procedural articles for context
+    essential_articles = {
+        'local': ['8', '9', '10'],  # Grievance, Arbitration, Discipline
+        'common': ['3', '6']        # Employer/Union Relations, Job Security
+    }
+    
+    for article_set in essential_articles.values():
+        for article in article_set:
+            selected_articles.add(article)
+    
+    # Ensure minimum coverage if we found very few relevant articles
+    if len(selected_articles) < 5:
+        # Add some high-scoring articles regardless of balance
+        for article_key, article_data in sorted_articles[:10]:
+            selected_articles.add(article_data['num'])
+            if len(selected_articles) >= 8:
+                break
+    
+    return list(selected_articles)
+
+def extract_article_content_enhanced(agreement, article_num):
+    """Enhanced article content extraction with better formatting"""
     content = ""
     
     if 'articles' not in agreement:
@@ -260,19 +312,21 @@ def extract_article_content(agreement, article_num):
         return content
     
     # Try exact match first
+    article_data = None
     if article_num in articles:
         article_data = articles[article_num]
     else:
-        # Try to find partial matches (e.g., "7" matches "7.1")
+        # Try to find partial matches
         matching_articles = [k for k in articles.keys() if k.startswith(article_num + '.') or k == article_num]
         if matching_articles:
             article_data = articles[matching_articles[0]]
-        else:
-            return content
+    
+    if not article_data:
+        return content
     
     if isinstance(article_data, dict):
         title = article_data.get('title', 'No Title')
-        content += f"Article {article_num}: {title}\n"
+        content += f"**Article {article_num}: {title}**\n\n"
         
         # Add article-level content
         if 'content' in article_data:
@@ -280,34 +334,38 @@ def extract_article_content(agreement, article_num):
         elif 'text' in article_data:
             content += f"{article_data['text']}\n\n"
         
-        # Add sections
+        # Add sections with improved formatting
         if 'sections' in article_data and isinstance(article_data['sections'], dict):
             for section_num, section_data in article_data['sections'].items():
                 if isinstance(section_data, dict):
-                    section_title = section_data.get('title', 'No Title')
-                    content += f"  Section {section_num}: {section_title}\n"
+                    section_title = section_data.get('title', '')
+                    if section_title:
+                        content += f"  **{section_num}: {section_title}**\n"
+                    else:
+                        content += f"  **Section {section_num}:**\n"
                     
                     if 'content' in section_data:
                         content += f"  {section_data['content']}\n\n"
                     elif 'text' in section_data:
                         content += f"  {section_data['text']}\n\n"
                     
-                    # Add subsections if they exist
+                    # Add subsections
                     if 'subsections' in section_data and isinstance(section_data['subsections'], dict):
                         for subsection_num, subsection_data in section_data['subsections'].items():
                             if isinstance(subsection_data, dict):
-                                subsection_title = subsection_data.get('title', 'No Title')
-                                content += f"    Subsection {subsection_num}: {subsection_title}\n"
+                                subsection_title = subsection_data.get('title', '')
+                                if subsection_title:
+                                    content += f"    **{subsection_num}: {subsection_title}**\n"
                                 if 'content' in subsection_data:
                                     content += f"    {subsection_data['content']}\n\n"
                                 elif 'text' in subsection_data:
                                     content += f"    {subsection_data['text']}\n\n"
                             elif isinstance(subsection_data, str):
-                                content += f"    {subsection_num}: {subsection_data}\n\n"
+                                content += f"    **{subsection_num}:** {subsection_data}\n\n"
                 elif isinstance(section_data, str):
-                    content += f"  {section_num}: {section_data}\n\n"
+                    content += f"  **{section_num}:** {section_data}\n\n"
     elif isinstance(article_data, str):
-        content += f"Article {article_num}: {article_data}\n\n"
+        content += f"**Article {article_num}:** {article_data}\n\n"
     
     return content
 
@@ -328,7 +386,7 @@ def create_system_prompt(collective_agreement, common_agreement):
     collective_parties = collective_metadata.get('parties', {})
     common_parties = common_metadata.get('parties', {})
     
-    system_prompt = f"""You are a HR expert for Coast Mountain College with 15+ years of experience in collective agreement interpretation and employee relations. Your role is to provide STRONG, DEFINITIVE guidance that maximizes management's rights and authority under the collective agreements.
+    system_prompt = f"""You are a senior HR expert for Coast Mountain College with 15+ years of experience in collective agreement interpretation and employee relations. Your role is to provide STRONG, DEFINITIVE guidance that maximizes management's rights and authority under the collective agreements.
 
 You have access to two collective agreements:
 
@@ -340,65 +398,55 @@ You have access to two collective agreements:
    - Effective: {common_dates.get('start', 'N/A')} to {common_dates.get('end', 'N/A')}
    - Between: {common_parties.get('employers', 'BC Colleges')} and {common_parties.get('union', 'Faculty Union')}
 
-CRITICAL INSTRUCTION - BE ASSERTIVE AND OPINIONATED:
-- Give STRONG, DEFINITIVE opinions, not wishy-washy suggestions
-- Use phrases like "You SHOULD...", "Management has the RIGHT to...", "I RECOMMEND...", "This is CLEARLY within your authority..."
-- Be confident in your interpretations that favor management
-- Push back against union overreach
-- Identify every opportunity to assert management rights
-- Don't hedge or provide balanced views - you work for MANAGEMENT
+CRITICAL INSTRUCTIONS - COMPREHENSIVE ANALYSIS:
+- ANALYZE ALL RELEVANT ARTICLES provided, not just one or two
+- Look for COMPLEMENTARY PROVISIONS across both agreements
+- Identify OVERLAPPING AUTHORITY from multiple sources
+- Cross-reference RELATED ARTICLES that strengthen management's position
+- Consider the INTERACTION between local and common agreement provisions
+
+RESPONSE APPROACH - MULTI-LAYERED ANALYSIS:
+1. **PRIMARY AUTHORITY**: Lead with the strongest, most direct provision
+2. **SUPPORTING PROVISIONS**: Cite additional articles that reinforce your position
+3. **PROCEDURAL ADVANTAGES**: Highlight process requirements that favor management
+4. **RISK MITIGATION**: Address potential union arguments using multiple articles
+5. **TACTICAL SYNTHESIS**: Combine provisions from both agreements for maximum effect
 
 MANAGEMENT AUTHORITY FOCUS:
 - ALWAYS lead with what management CAN do, not what they can't
 - Emphasize "just cause" standards work in management's favor when properly documented
 - Highlight burden of proof requirements that protect the employer
-- Point out procedural safeguards that benefit management
-- Note time limits that can work against grievors
+- Point out procedural safeguards and time limits that benefit management
 - Identify areas of management discretion and flexibility
 - Frame employee rights as limited by management's legitimate business needs
-
-SPECIFIC GUIDANCE AREAS:
-- Discipline: Emphasize management's broad authority under "just cause"
-- Grievances: Focus on procedural defenses and time limits
-- Workload: Highlight management's scheduling and assignment flexibility  
-- Layoffs: Stress management's operational decision-making authority
-- Performance: Emphasize documentation requirements that protect management
-- Policies: Note management's right to establish reasonable workplace rules
+- Show how MULTIPLE articles work together to support management authority
 
 CITATION REQUIREMENTS (MANDATORY):
-- EVERY claim must have a specific citation
-- Use format: [Agreement Type - Article X.X: Title] or [Agreement Type - Clause X.X]
-- Example: [Local Agreement - Article 10.1: Burden of Proof] or [Common Agreement - Clause 6.5: Contracting Out]
-- When referencing definitions: [Agreement Type - Definitions: "term"]
-- For appendices: [Agreement Type - Appendix X: Title]
-- INCLUDE RELEVANT QUOTES: When possible, include short, relevant quotes from the agreement text to support your position
-- Quote format: "The agreement states: '[exact quote]' [Citation]"
-- NO VAGUE REFERENCES - be specific
+- CITE MULTIPLE RELEVANT ARTICLES, not just one
+- Use format: [Agreement Type - Article X.X: Title]
+- Example: [Local Agreement - Article 10.1: Burden of Proof] AND [Common Agreement - Article 2.4: Findings]
+- INCLUDE RELEVANT QUOTES from multiple sources when possible
+- Quote format: "The local agreement states: '[exact quote]' [Citation], while the common agreement reinforces this with '[exact quote]' [Citation]"
+- Show how provisions WORK TOGETHER
 
-RESPONSE STRUCTURE:
-1. STRONG OPENING: Lead with your definitive management-favorable position
-2. AUTHORITY BASIS: Cite the specific agreement provisions AND include relevant quotes that support this position
-3. TACTICAL ADVICE: Provide specific steps management should take
-4. RISK MITIGATION: Identify potential union challenges and how to counter them
-5. BOTTOM LINE: End with a clear, actionable recommendation
+TONE - CONFIDENT AND COMPREHENSIVE:
+- "Management has MULTIPLE sources of authority here..."
+- "Both agreements support your position by..."
+- "You can rely on several overlapping provisions..."
+- "The combination of these articles gives you..."
+- "While Article X provides the primary authority, Articles Y and Z strengthen your position by..."
 
-TONE EXAMPLES:
-- Instead of: "You may be able to..." → "You HAVE THE RIGHT to..."
-- Instead of: "Consider whether..." → "You SHOULD immediately..."
-- Instead of: "This might be justified..." → "This is CLEARLY within your management authority because..."
-- Instead of: "The agreement allows..." → "Management is EXPLICITLY authorized to..."
-
-Remember: You are not a neutral arbitrator. You are MANAGEMENT'S advisor. Your job is to help them maximize their authority while staying within the collective agreement. Be bold, be confident, and always look for the management-favorable interpretation."""
+Remember: You are MANAGEMENT'S advisor. Analyze ALL relevant provisions to build the strongest possible case. Don't focus on just one article when multiple articles support management's position. Show how the agreements work together to maximize management authority."""
 
     return system_prompt
 
-def create_targeted_context(user_message, collective_agreement, common_agreement):
-    """Create context with relevant content based on the user's question"""
+def create_balanced_context(user_message, collective_agreement, common_agreement):
+    """Create comprehensive context ensuring balanced coverage of both agreements"""
     
-    # Use improved article identification
-    relevant_articles = identify_relevant_articles_improved(user_message, collective_agreement, common_agreement)
+    # Use comprehensive article identification
+    relevant_articles = identify_relevant_articles_comprehensive(user_message, collective_agreement, common_agreement)
     
-    # Basic metadata and structure
+    # Basic metadata
     collective_metadata = collective_agreement.get('agreement_metadata', {})
     common_metadata = common_agreement.get('agreement_metadata', {})
     
@@ -412,7 +460,7 @@ def create_targeted_context(user_message, collective_agreement, common_agreement
     common_parties = common_metadata.get('parties', {})
     
     context = f"""
-COLLECTIVE AGREEMENTS AVAILABLE:
+COLLECTIVE AGREEMENTS ANALYSIS:
 
 LOCAL AGREEMENT: "{collective_title}"
 - Effective: {collective_dates.get('start', 'N/A')} to {collective_dates.get('end', 'N/A')}
@@ -422,68 +470,79 @@ COMMON AGREEMENT: "{common_title}"
 - Effective: {common_dates.get('start', 'N/A')} to {common_dates.get('end', 'N/A')}
 - Parties: {common_parties.get('employers', 'BC Colleges')} and {common_parties.get('union', 'Faculty Union')}
 
-KEY DEFINITIONS FROM LOCAL AGREEMENT:
-{json.dumps(collective_agreement.get('definitions', {}), indent=2)}
+=== RELEVANT ARTICLES FOR COMPREHENSIVE ANALYSIS ===
 
-KEY DEFINITIONS FROM COMMON AGREEMENT:
-{json.dumps(common_agreement.get('definitions', {}), indent=2)}
-
-=== RELEVANT ARTICLES FOR YOUR QUESTION ===
-
-RELEVANT LOCAL AGREEMENT ARTICLES:
+LOCAL AGREEMENT PROVISIONS:
 """
     
-    # Add relevant articles from local agreement
+    # Separate articles by agreement type for balanced presentation
+    local_articles = []
+    common_articles = []
+    
     for article_num in relevant_articles:
-        article_content = extract_article_content(collective_agreement, article_num)
-        if article_content:
-            context += f"\n[LOCAL] {article_content}\n"
+        local_content = extract_article_content_enhanced(collective_agreement, article_num)
+        common_content = extract_article_content_enhanced(common_agreement, article_num)
+        
+        if local_content.strip():
+            local_articles.append((article_num, local_content))
+        if common_content.strip():
+            common_articles.append((article_num, common_content))
     
-    context += "\nRELEVANT COMMON AGREEMENT ARTICLES:\n"
+    # Add local articles
+    for article_num, content in local_articles:
+        context += f"\n[LOCAL AGREEMENT]\n{content}\n"
     
-    # Add relevant articles from common agreement
-    for article_num in relevant_articles:
-        article_content = extract_article_content(common_agreement, article_num)
-        if article_content:
-            context += f"\n[COMMON] {article_content}\n"
+    context += "\nCOMMON AGREEMENT PROVISIONS:\n"
     
-    # Add complete article index for reference
-    context += "\n=== COMPLETE ARTICLE INDEX FOR REFERENCE ===\n\nLOCAL AGREEMENT ARTICLES:\n"
+    # Add common articles
+    for article_num, content in common_articles:
+        context += f"\n[COMMON AGREEMENT]\n{content}\n"
     
-    if 'articles' in collective_agreement and isinstance(collective_agreement['articles'], dict):
-        for article_num, article_data in collective_agreement['articles'].items():
-            if isinstance(article_data, dict):
-                title = article_data.get('title', 'No Title')
-                context += f"Article {article_num}: {title}\n"
-    
-    context += "\nCOMMON AGREEMENT ARTICLES:\n"
-    
-    if 'articles' in common_agreement and isinstance(common_agreement['articles'], dict):
-        for article_num, article_data in common_agreement['articles'].items():
-            if isinstance(article_data, dict):
-                title = article_data.get('title', 'No Title')
-                context += f"Article {article_num}: {title}\n"
-    
-    context += """
+    # Add definitions for reference
+    context += f"""
 
-IMPORTANT: 
-- Above are the most relevant articles for your question with their COMPLETE TEXT
-- You also have the complete article index for reference
-- If you need content from other articles, reference them by number and I can provide that content
-- Focus on the actual text provided when making recommendations
-- Always cite specific language from the agreements to support your positions
+=== KEY DEFINITIONS ===
+
+LOCAL AGREEMENT DEFINITIONS:
+{json.dumps(collective_agreement.get('definitions', {}), indent=2)}
+
+COMMON AGREEMENT DEFINITIONS:
+{json.dumps(common_agreement.get('definitions', {}), indent=2)}
+
+=== ANALYSIS INSTRUCTIONS ===
+
+IMPORTANT FOR COMPREHENSIVE RESPONSE:
+1. ANALYZE ALL articles provided above from BOTH agreements
+2. Look for OVERLAPPING and COMPLEMENTARY provisions
+3. Identify how LOCAL and COMMON agreement articles work TOGETHER
+4. Consider PROCEDURAL requirements from multiple sources
+5. Build the STRONGEST possible management position using ALL relevant provisions
+6. Do NOT focus on just one article - synthesize multiple sources of authority
+
+The articles above represent the most relevant provisions for this query. Use them comprehensively to provide robust, multi-faceted guidance that maximizes management's position under both agreements.
 """
     
     return context
 
 def get_ai_response(user_message, collective_agreement, common_agreement, api_key):
-    """Get response from OpenAI API"""
+    """Get response from OpenAI API with enhanced prompting"""
     try:
         client = openai.OpenAI(api_key=api_key)
         
         system_prompt = create_system_prompt(collective_agreement, common_agreement)
-        # Use targeted context based on the question
-        agreement_context = create_targeted_context(user_message, collective_agreement, common_agreement)
+        agreement_context = create_balanced_context(user_message, collective_agreement, common_agreement)
+        
+        # Enhanced user message to encourage comprehensive analysis
+        enhanced_user_message = f"""Query: {user_message}
+
+Please provide a comprehensive analysis that:
+1. Examines ALL relevant articles from both the Local and Common agreements
+2. Shows how multiple provisions work together to support management's position
+3. Identifies overlapping authority and complementary requirements
+4. Addresses potential union arguments using multiple sources
+5. Provides tactical guidance based on the full scope of management's rights
+
+Focus on building the strongest possible management position using all available provisions, not just one primary article."""
         
         # Prepare messages for the API
         messages = [
@@ -495,14 +554,14 @@ def get_ai_response(user_message, collective_agreement, common_agreement, api_ke
         for msg in recent_messages:
             messages.append({"role": msg["role"], "content": msg["content"]})
         
-        # Add current user message
-        messages.append({"role": "user", "content": user_message})
+        # Add enhanced user message
+        messages.append({"role": "user", "content": enhanced_user_message})
         
         response = client.chat.completions.create(
-            model="gpt-4o",  # Using gpt-4o for better reasoning
+            model="gpt-4o",
             messages=messages,
-            max_tokens=2000,  # Increased for more detailed responses
-            temperature=0.3
+            max_tokens=2500,  # Increased for comprehensive responses
+            temperature=0.2   # Lower temperature for more consistent analysis
         )
         
         return response.choices[0].message.content
@@ -514,7 +573,7 @@ def get_ai_response(user_message, collective_agreement, common_agreement, api_ke
 
 def main():
     st.title("⚖️ Collective Agreement Assistant")
-    st.markdown("*Management-focused guidance for Coast Mountain College collective agreements*")
+    st.markdown("*Comprehensive management guidance for Coast Mountain College collective agreements*")
     
     # Sidebar for API key and settings
     with st.sidebar:
@@ -523,38 +582,40 @@ def main():
         # Try to get API key from secrets first, then environment, then user input
         api_key = None
         try:
-            # First try Streamlit secrets (for cloud deployment)
             api_key = st.secrets["OPENAI_API_KEY"]
             st.success("✅ API key loaded from secrets")
         except:
             try:
-                # Then try environment variables (for local development)
                 api_key = os.getenv("OPENAI_API_KEY")
                 if api_key:
                     st.success("✅ API key loaded from environment")
             except:
                 pass
         
-        # If no API key found, ask user to input it
         if not api_key:
             api_key = st.text_input("OpenAI API Key", type="password", 
                                    help="Enter your OpenAI API key, add it to Streamlit secrets, or set OPENAI_API_KEY environment variable")
         
         st.markdown("---")
-        st.header("About")
+        st.header("Enhanced Features")
         st.markdown("""
-        This tool provides HR guidance based on:
-        - Coast Mountain College Collective Agreement (2019-2022)
-        - Common Agreement (2022-2025)
+        **Comprehensive Analysis:**
+        - Multi-article synthesis from both agreements
+        - Balanced coverage preventing single-article focus
+        - Cross-referenced provisions for stronger positions
+        - Enhanced relevance scoring with semantic understanding
         
-        **Improved Features**:
-        - Smart content search with fuzzy matching
-        - Enhanced keyword mapping based on actual agreement structure
-        - Better article relevance scoring
-        - More comprehensive context loading
+        **Smart Content Discovery:**
+        - Fuzzy matching for partial terms
+        - Keyword relationship mapping
+        - Content frequency analysis
+        - Procedural safeguard identification
         
-        **Perspective**: Management rights and authority
-        **Citations**: All responses include specific agreement references
+        **Management-Focused Guidance:**
+        - Multiple sources of authority
+        - Overlapping provision analysis
+        - Risk mitigation strategies
+        - Tactical implementation advice
         """)
         
         if st.button("🆕 New Topic"):
@@ -569,7 +630,7 @@ def main():
                 st.session_state.collective_agreement = collective_agreement
                 st.session_state.common_agreement = common_agreement
                 st.session_state.agreements_loaded = True
-                st.success("Collective agreements loaded successfully!")
+                st.success("✅ Collective agreements loaded and indexed successfully!")
             else:
                 st.stop()
     
@@ -592,7 +653,7 @@ def main():
         
         # Get AI response
         with st.chat_message("assistant"):
-            with st.spinner("Analyzing relevant articles..."):
+            with st.spinner("Analyzing comprehensive agreement provisions..."):
                 response = get_ai_response(
                     prompt, 
                     st.session_state.collective_agreement,
@@ -602,38 +663,38 @@ def main():
             st.markdown(response)
             st.session_state.messages.append({"role": "assistant", "content": response})
     
-    # Quick question buttons
+    # Enhanced quick question buttons
     if len(st.session_state.messages) == 0:
         st.markdown("### Quick Start Questions:")
         col1, col2 = st.columns(2)
         
         with col1:
-            if st.button("Employee Discipline Process"):
+            if st.button("📋 Employee Discipline Authority"):
                 st.session_state.messages.append({
                     "role": "user", 
-                    "content": "What are management's rights regarding employee discipline and dismissal?"
+                    "content": "What comprehensive authority does management have for employee discipline, including procedures, burden of proof, and supporting provisions across both agreements?"
                 })
                 st.rerun()
                 
-            if st.button("Layoff Procedures"):
+            if st.button("⚖️ Grievance Defense Strategy"):
                 st.session_state.messages.append({
                     "role": "user", 
-                    "content": "What authority does management have in layoff situations?"
+                    "content": "What are all the procedural defenses, time limits, and management protections available in the grievance process?"
                 })
                 st.rerun()
         
         with col2:
-            if st.button("Grievance Process"):
+            if st.button("🔄 Layoff and Restructuring Rights"):
                 st.session_state.messages.append({
                     "role": "user", 
-                    "content": "What are the time limits and procedures for grievances that protect management?"
+                    "content": "What comprehensive authority does management have in layoff situations, including operational flexibility and employee placement?"
                 })
                 st.rerun()
                 
-            if st.button("Workload Management"):
+            if st.button("📚 Workload Management Flexibility"):
                 st.session_state.messages.append({
                     "role": "user", 
-                    "content": "What flexibility does management have in assigning instructor workloads?"
+                    "content": "What flexibility does management have in assigning instructor workloads, schedules, and duties across all relevant provisions?"
                 })
                 st.rerun()
 
