@@ -643,36 +643,14 @@ def main():
                                    help="Enter your OpenAI API key, add it to Streamlit secrets, or set OPENAI_API_KEY environment variable")
         
         st.markdown("---")
-        st.header("Enhanced Features")
-        fuzzy_status = "✅ FuzzyWuzzy (Advanced)" if FUZZYWUZZY_AVAILABLE else "⚠️ Built-in (Basic)"
+        st.header("About")
+        st.markdown("""
+        This tool provides HR guidance based on:
+        - Coast Mountain College Collective Agreement (2019-2022)
+        - Common Agreement (2022-2025)
         
-        st.markdown(f"""
-        **Comprehensive Analysis:**
-        - Multi-article synthesis from both agreements
-        - Balanced coverage preventing single-article focus
-        - Cross-referenced provisions for stronger positions
-        - Enhanced relevance scoring with semantic understanding
-        
-        **Smart Content Discovery:**
-        - Fuzzy matching: {fuzzy_status}
-        - Keyword relationship mapping
-        - Content frequency analysis
-        - Procedural safeguard identification
-        
-        **Management-Focused Guidance:**
-        - Multiple sources of authority
-        - Overlapping provision analysis
-        - Risk mitigation strategies
-        - Tactical implementation advice
-        
-        **Installation:**
-        To enable advanced fuzzy matching, create `requirements.txt`:
-        ```
-        streamlit
-        openai
-        fuzzywuzzy[speedup]
-        python-Levenshtein
-        ```
+        **Perspective**: Management rights and authority
+        **Citations**: All responses include specific agreement references
         """)
         
         if st.button("🆕 New Topic"):
