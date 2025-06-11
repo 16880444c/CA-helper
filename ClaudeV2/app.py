@@ -6,133 +6,110 @@ import os
 
 # Set page config
 st.set_page_config(
-   page_title="Coast Mountain College Agreement Assistant",
-   page_icon="⚖️",
-   layout="wide"
+    page_title="Coast Mountain College Agreement Assistant",
+    page_icon="⚖️",
+    layout="wide"
 )
 
-def load_builtin_agreements():
-   """Load the built-in agreements from JSON files"""
-   try:
-       with open('complete_local.json', 'r', encoding='utf-8') as f:
-           local_agreement = json.load(f)
-       
-       with open('complete_common.json', 'r', encoding='utf-8') as f:
-           common_agreement = json.load(f)
-       
-       return local_agreement, common_agreement
-       
-   except FileNotFoundError as e:
-       st.error(f"JSON files not found: {str(e)}")
-       st.error("Please ensure 'complete_local.json' and 'complete_common.json' are in the same directory as this app.")
-       return None, None
-   except json.JSONDecodeError as e:
-       st.error(f"JSON parsing error: {e}")
-       return None, None
-   except Exception as e:
-       st.error(f"Error loading built-in agreements: {e}")
-       return None, None
+def load_builtin_agreements() -> tuple:
+    """Load the built-in agreements from JSON files"""
+    try:
+        with open('complete_local.json', 'r', encoding='utf-8') as f:
+            local_agreement = json.load(f)
+        
+        with open('complete_common.json', 'r', encoding='utf-8') as f:
+            common_agreement = json.load(f)
+        
+        return local_agreement, common_agreement
+        
+    except FileNotFoundError as e:
+        st.error(f"JSON files not found: {str(e)}")
+        st.error("Please ensure 'complete_local.json' and 'complete_common.json' are in the same directory as this app.")
+        return None, None
+    except json.JSONDecodeError as e:
+        st.error(f"JSON parsing error: {e}")
+        return None, None
+    except Exception as e:
+        st.error(f"Error loading built-in agreements: {e}")
+        return None, None
 
-def format_agreement_for_context(agreement, agreement_name):
-   """Convert agreement JSON to formatted text for Claude context"""
-   context = f"=== {agreement_name.upper()} ===\n\n"
-   
-   # Add metadata
-   if 'agreement_metadata' in agreement:
-       context += "AGREEMENT METADATA:\n"
-       context += json.dumps(agreement['agreement_metadata'], indent=2) + "\n\n"
-   
-   # Add definitions
-   if 'definitions' in agreement:
-       context += "DEFINITIONS:\n"
-       for term, definition in agreement['definitions'].items():
-           context += f"- {term}: {definition}\n"
-       context += "\n"
-   
-   # Add articles
-   if 'articles' in agreement:
-       context += "ARTICLES:\n\n"
-       for article_num, article_data in agreement['articles'].items():
-           if isinstance(article_data, dict):
-               title = article_data.get('title', f'Article {article_num}')
-               context += f"ARTICLE {article_num}: {title}\n"
-               
-               # Add sections
-               if 'sections' in article_data:
-                   for section_key, section_data in article_data['sections'].items():
-                       context += f"\nSection {section_key}:\n"
-                       if isinstance(section_data, dict):
-                           if 'title' in section_data:
-                               context += f"Title: {section_data['title']}\n"
-                           if 'content' in section_data:
-                               context += f"Content: {section_data['content']}\n"
-                           if 'subsections' in section_data:
-                               context += "Subsections:\n"
-                               for sub_key, sub_content in section_data['subsections'].items():
-                                   context += f"  {sub_key}) {sub_content}\n"
-                       else:
-                           context += f"{section_data}\n"
-               
-               # Add other content if no sections
-               if 'sections' not in article_data and 'content' in article_data:
-                   context += f"\n{article_data['content']}\n"
-               
-               context += "\n" + "="*50 + "\n\n"
-   
-   # Debug appendices section
-   if 'appendices' in agreement:
-       context += "APPENDICES:\n\n"
-       context += f"DEBUG: Found {len(agreement['appendices'])} appendices\n"
-       context += f"DEBUG: Appendix keys: {list(agreement['appendices'].keys())}\n\n"
-       
-       for appendix_key, appendix_data in agreement['appendices'].items():
-           # Convert appendix_3 to "APPENDIX 3" for better readability
-           display_key = appendix_key.replace('_', ' ').upper()
-           context += f"{display_key}:\n"
-           context += f"DEBUG: Type of appendix_data: {type(appendix_data)}\n"
-           
-           if isinstance(appendix_data, dict):
-               if 'title' in appendix_data:
-                   context += f"Title: {appendix_data['title']}\n\n"
-               
-               # Try to format the content more readably instead of just JSON dump
-               for key, value in appendix_data.items():
-                   if key == 'title':
-                       continue  # Already handled above
-                   context += f"{key.replace('_', ' ').title()}: "
-                   if isinstance(value, dict):
-                       context += "\n"
-                       for sub_key, sub_value in value.items():
-                           context += f"  - {sub_key.replace('_', ' ').title()}: {sub_value}\n"
-                   elif isinstance(value, list):
-                       context += "\n"
-                       for item in value:
-                           context += f"  - {item}\n"
-                   else:
-                       context += f"{value}\n"
-                   context += "\n"
-           else:
-               context += str(appendix_data)
-           context += "\n" + "="*50 + "\n\n"
-   else:
-       context += "DEBUG: No 'appendices' key found in agreement\n\n"
-   
-   return context
+def format_agreement_for_context(agreement: dict, agreement_name: str) -> str:
+    """Convert agreement JSON to formatted text for Claude context"""
+    context = f"=== {agreement_name.upper()} ===\n\n"
+    
+    # Add metadata
+    if 'agreement_metadata' in agreement:
+        context += "AGREEMENT METADATA:\n"
+        context += json.dumps(agreement['agreement_metadata'], indent=2) + "\n\n"
+    
+    # Add definitions
+    if 'definitions' in agreement:
+        context += "DEFINITIONS:\n"
+        for term, definition in agreement['definitions'].items():
+            context += f"- {term}: {definition}\n"
+        context += "\n"
+    
+    # Add articles
+    if 'articles' in agreement:
+        context += "ARTICLES:\n\n"
+        for article_num, article_data in agreement['articles'].items():
+            if isinstance(article_data, dict):
+                title = article_data.get('title', f'Article {article_num}')
+                context += f"ARTICLE {article_num}: {title}\n"
+                
+                # Add sections
+                if 'sections' in article_data:
+                    for section_key, section_data in article_data['sections'].items():
+                        context += f"\nSection {section_key}:\n"
+                        if isinstance(section_data, dict):
+                            if 'title' in section_data:
+                                context += f"Title: {section_data['title']}\n"
+                            if 'content' in section_data:
+                                context += f"Content: {section_data['content']}\n"
+                            if 'subsections' in section_data:
+                                context += "Subsections:\n"
+                                for sub_key, sub_content in section_data['subsections'].items():
+                                    context += f"  {sub_key}) {sub_content}\n"
+                        else:
+                            context += f"{section_data}\n"
+                
+                # Add other content if no sections
+                if 'sections' not in article_data and 'content' in article_data:
+                    context += f"\n{article_data['content']}\n"
+                
+                context += "\n" + "="*50 + "\n\n"
+    
+    # Add appendices
+    if 'appendices' in agreement:
+        context += "APPENDICES:\n\n"
+        for appendix_key, appendix_data in agreement['appendices'].items():
+            # ONLY CHANGE: Convert appendix_3 to "APPENDIX 3" for better readability
+            display_key = appendix_key.replace('_', ' ').upper()
+            context += f"{display_key}:\n"
+            if isinstance(appendix_data, dict):
+                if 'title' in appendix_data:
+                    context += f"Title: {appendix_data['title']}\n\n"
+                context += json.dumps(appendix_data, indent=2)
+            else:
+                context += str(appendix_data)
+            context += "\n\n" + "="*50 + "\n\n"
+    
+    return context
 
-def generate_response(query, local_agreement, common_agreement, agreement_scope, api_key):
-   """Generate response using Claude with complete agreement context"""
-   
-   # Build context based on selected scope
-   context = ""
-   if agreement_scope == "Local Agreement Only":
-       context = format_agreement_for_context(local_agreement, "Coast Mountain College Local Agreement")
-   elif agreement_scope == "Common Agreement Only":
-       context = format_agreement_for_context(common_agreement, "BCGEU Common Agreement")
-   else:  # Both agreements
-       context = format_agreement_for_context(local_agreement, "Coast Mountain College Local Agreement")
-       context += "\n\n" + format_agreement_for_context(common_agreement, "BCGEU Common Agreement")
-   
-   system_prompt = """You are an experienced HR professional and collective agreement specialist for Coast Mountain College with 15+ years of expertise in labor relations and agreement interpretation. Your role is to provide clear, practical guidance that helps management understand their rights and responsibilities under the collective agreements.
+def generate_response(query: str, local_agreement: dict, common_agreement: dict, agreement_scope: str, api_key: str) -> str:
+    """Generate response using Claude with complete agreement context"""
+    
+    # Build context based on selected scope
+    context = ""
+    if agreement_scope == "Local Agreement Only":
+        context = format_agreement_for_context(local_agreement, "Coast Mountain College Local Agreement")
+    elif agreement_scope == "Common Agreement Only":
+        context = format_agreement_for_context(common_agreement, "BCGEU Common Agreement")
+    else:  # Both agreements
+        context = format_agreement_for_context(local_agreement, "Coast Mountain College Local Agreement")
+        context += "\n\n" + format_agreement_for_context(common_agreement, "BCGEU Common Agreement")
+    
+    system_prompt = f"""You are an experienced HR professional and collective agreement specialist for Coast Mountain College with 15+ years of expertise in labor relations and agreement interpretation. Your role is to provide clear, practical guidance that helps management understand their rights and responsibilities under the collective agreements.
 
 APPROACH AND TONE:
 - Provide clear, confident guidance while remaining professional and balanced
@@ -171,7 +148,7 @@ RESPONSE STRUCTURE:
 Remember: You are management's trusted advisor. Your goal is to help them operate effectively within the collective agreement framework while protecting institutional interests and maintaining positive labor relations.
 
 COLLECTIVE AGREEMENT CONTENT:
-""" + context + """
+{context}
 
 IMPORTANT: You have access to the complete collective agreement content above. If you cannot find specific information about a topic (like vacation), please:
 1. Carefully review ALL articles and sections provided
@@ -180,195 +157,194 @@ IMPORTANT: You have access to the complete collective agreement content above. I
 4. If the information truly isn't in the provided content, say so clearly
 5. Never claim you only have "excerpts" - you have the complete agreement sections selected by the user"""
 
-   user_message = f"""Based on the complete collective agreement provisions provided in the system prompt, provide strong management-focused guidance for this question:
+    user_message = f"""Based on the complete collective agreement provisions provided in the system prompt, provide strong management-focused guidance for this question:
 
 QUESTION: {query}
 
 Provide definitive, management-favorable guidance with specific citations and quotes from the agreement text."""
 
-   client = anthropic.Anthropic(api_key=api_key)
-   
-   try:
-       response = client.messages.create(
-           model="claude-3-5-sonnet-20241022",
-           max_tokens=1500,
-           temperature=0.1,
-           system=system_prompt,
-           messages=[
-               {"role": "user", "content": user_message}
-           ]
-       )
-       
-       # Update usage stats
-       if 'total_queries' not in st.session_state:
-           st.session_state.total_queries = 0
-       st.session_state.total_queries += 1
-       
-       return response.content[0].text
-   except Exception as e:
-       return f"Error generating response: {e}"
+    client = anthropic.Anthropic(api_key=api_key)
+    
+    try:
+        response = client.messages.create(
+            model="claude-3-5-sonnet-20241022",
+            max_tokens=1500,
+            temperature=0.1,
+            system=system_prompt,
+            messages=[
+                {"role": "user", "content": user_message}
+            ]
+        )
+        
+        # Update usage stats
+        if 'total_queries' not in st.session_state:
+            st.session_state.total_queries = 0
+        st.session_state.total_queries += 1
+        
+        return response.content[0].text
+    except Exception as e:
+        return f"Error generating response: {e}"
 
 def clear_chat():
-   """Clear the chat history"""
-   st.session_state.messages = []
-   st.rerun()
+    """Clear the chat history"""
+    st.session_state.messages = []
+    st.rerun()
 
 def main():
-   st.title("⚖️ Coast Mountain College Agreement Assistant")
-   st.markdown("*Complete collective agreement analysis with management-focused guidance (Powered by Claude)*")
-   
-   # Initialize session state
-   if 'messages' not in st.session_state:
-       st.session_state.messages = []
-   if 'total_queries' not in st.session_state:
-       st.session_state.total_queries = 0
-   
-   # Get API key
-   api_key = None
-   try:
-       api_key = st.secrets["ANTHROPIC_API_KEY"]
-   except:
-       try:
-           api_key = os.getenv("ANTHROPIC_API_KEY")
-       except:
-           pass
-   
-   if not api_key:
-       st.error("🔑 Anthropic API key not found. Please set it in Streamlit secrets or environment variables.")
-       st.stop()
-   
-   # Agreement Selection (prominent, no sidebar)
-   st.markdown("### 📋 Select Collective Agreement")
-   agreement_scope = st.radio(
-       "Which agreement do you want to search?",
-       ["Local Agreement Only", "Common Agreement Only", "Both Agreements"],
-       index=0,  # Default to Local Agreement
-       horizontal=True,
-       help="Local = Coast Mountain College specific terms | Common = BCGEU system-wide terms | Both = Complete search"
-   )
-   
-   st.markdown("---")
-   
-   # Display conversation history
-   for message in st.session_state.messages:
-       with st.chat_message(message["role"]):
-           st.markdown(message["content"])
-   
-   # Chat input
-   prompt = st.chat_input("Ask about collective agreement provisions...")
-   if prompt:
-       # Load agreements when user submits question
-       with st.spinner("Loading agreements..."):
-           local_agreement, common_agreement = load_builtin_agreements()
-           
-           if not local_agreement or not common_agreement:
-               st.error("❌ Could not load agreement files. Please check that the JSON files are available.")
-               st.stop()
-       
-       # Add user message
-       st.session_state.messages.append({"role": "user", "content": prompt})
-       with st.chat_message("user"):
-           st.markdown(prompt)
-       
-       # Generate response
-       with st.chat_message("assistant"):
-           with st.spinner(f"Analyzing {agreement_scope.lower()} and generating management guidance..."):
-               response = generate_response(
-                   prompt, 
-                   local_agreement, 
-                   common_agreement, 
-                   agreement_scope,
-                   api_key
-               )
-               st.markdown(response)
-               st.session_state.messages.append({"role": "assistant", "content": response})
-   
-   # Quick start questions based on scope (only show if no conversation yet)
-   if len(st.session_state.messages) == 0:
-       st.markdown("### 🚀 Quick Start Questions")
-       
-       if agreement_scope in ["Both Agreements", "Local Agreement Only"]:
-           st.markdown("**Local Agreement Questions:**")
-           col1, col2 = st.columns(2)
-           
-           with col1:
-               if st.button("📋 Faculty Workload Limits", key="workload"):
-                   st.session_state.messages.append({
-                       "role": "user", 
-                       "content": "What are the specific contact hour and class size limits for different programs? What authority does management have in workload assignment?"
-                   })
-                   st.rerun()
-                   
-               if st.button("💰 Salary Scale Authority", key="salary"):
-                   st.session_state.messages.append({
-                       "role": "user", 
-                       "content": "What control does management have over instructor salary placement and progression? Include specific rules and management rights."
-                   })
-                   st.rerun()
-           
-           with col2:
-               if st.button("📚 Professional Development Control", key="pd"):
-                   st.session_state.messages.append({
-                       "role": "user", 
-                       "content": "What authority does management have over professional development funding and approval? What are the requirements and limitations?"
-                   })
-                   st.rerun()
-                   
-               if st.button("🏫 Program Coordination Authority", key="coord"):
-                   st.session_state.messages.append({
-                       "role": "user", 
-                       "content": "What are management's rights in appointing and managing program coordinators? Include workload reduction and evaluation authority."
-                   })
-                   st.rerun()
-       
-       if agreement_scope in ["Both Agreements", "Common Agreement Only"]:
-           st.markdown("**Common Agreement Questions:**")
-           col1, col2 = st.columns(2)
-           
-           with col1:
-               if st.button("⚖️ Discipline & Dismissal Rights", key="discipline"):
-                   st.session_state.messages.append({
-                       "role": "user", 
-                       "content": "What are management's rights regarding employee discipline and dismissal? Include burden of proof and procedural protections for management."
-                   })
-                   st.rerun()
-                   
-               if st.button("📅 Grievance Time Limits", key="grievance"):
-                   st.session_state.messages.append({
-                       "role": "user", 
-                       "content": "What time limits and procedural requirements protect management in grievance situations? Include deadlines and defenses."
-                   })
-                   st.rerun()
-           
-           with col2:
-               if st.button("🔄 Layoff Authority", key="layoff"):
-                   st.session_state.messages.append({
-                       "role": "user", 
-                       "content": "What authority does management have in layoff situations? What are the specific procedures and management rights?"
-                   })
-                   st.rerun()
-                   
-               if st.button("📊 Job Security Provisions", key="security"):
-                   st.session_state.messages.append({
-                       "role": "user", 
-                       "content": "What flexibility does management have regarding job security, contracting out, and workforce management?"
-                   })
-                   st.rerun()
-   
-   # Bottom section with stats and new chat button
-   st.markdown("---")
-   
-   # Create columns for stats and new chat button
-   col1, col2 = st.columns([3, 1])
-   
-   with col1:
-       if st.session_state.total_queries > 0:
-           st.caption(f"💬 Queries processed: {st.session_state.total_queries} | 🎯 Scope: {agreement_scope} | 🤖 Powered by Claude")
-   
-   with col2:
-       if len(st.session_state.messages) > 0:
-           if st.button("🔄 Start New Chat", type="primary", use_container_width=True):
-               clear_chat()
+    st.title("⚖️ Coast Mountain College Agreement Assistant")
+    st.markdown("*Complete collective agreement analysis with management-focused guidance (Powered by Claude)*")
+    
+    # Initialize session state
+    if 'messages' not in st.session_state:
+        st.session_state.messages = []
+    if 'total_queries' not in st.session_state:
+        st.session_state.total_queries = 0
+    
+    # Get API key
+    api_key = None
+    try:
+        api_key = st.secrets["ANTHROPIC_API_KEY"]
+    except:
+        try:
+            api_key = os.getenv("ANTHROPIC_API_KEY")
+        except:
+            pass
+    
+    if not api_key:
+        st.error("🔑 Anthropic API key not found. Please set it in Streamlit secrets or environment variables.")
+        st.stop()
+    
+    # Agreement Selection (prominent, no sidebar)
+    st.markdown("### 📋 Select Collective Agreement")
+    agreement_scope = st.radio(
+        "Which agreement do you want to search?",
+        ["Local Agreement Only", "Common Agreement Only", "Both Agreements"],
+        index=0,  # Default to Local Agreement
+        horizontal=True,
+        help="Local = Coast Mountain College specific terms | Common = BCGEU system-wide terms | Both = Complete search"
+    )
+    
+    st.markdown("---")
+    
+    # Display conversation history
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+    
+    # Chat input
+    if prompt := st.chat_input("Ask about collective agreement provisions..."):
+        # Load agreements when user submits question
+        with st.spinner("Loading agreements..."):
+            local_agreement, common_agreement = load_builtin_agreements()
+            
+            if not local_agreement or not common_agreement:
+                st.error("❌ Could not load agreement files. Please check that the JSON files are available.")
+                st.stop()
+        
+        # Add user message
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        with st.chat_message("user"):
+            st.markdown(prompt)
+        
+        # Generate response
+        with st.chat_message("assistant"):
+            with st.spinner(f"Analyzing {agreement_scope.lower()} and generating management guidance..."):
+                response = generate_response(
+                    prompt, 
+                    local_agreement, 
+                    common_agreement, 
+                    agreement_scope,
+                    api_key
+                )
+                st.markdown(response)
+                st.session_state.messages.append({"role": "assistant", "content": response})
+    
+    # Quick start questions based on scope (only show if no conversation yet)
+    if len(st.session_state.messages) == 0:
+        st.markdown("### 🚀 Quick Start Questions")
+        
+        if agreement_scope in ["Both Agreements", "Local Agreement Only"]:
+            st.markdown("**Local Agreement Questions:**")
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                if st.button("📋 Faculty Workload Limits", key="workload"):
+                    st.session_state.messages.append({
+                        "role": "user", 
+                        "content": "What are the specific contact hour and class size limits for different programs? What authority does management have in workload assignment?"
+                    })
+                    st.rerun()
+                    
+                if st.button("💰 Salary Scale Authority", key="salary"):
+                    st.session_state.messages.append({
+                        "role": "user", 
+                        "content": "What control does management have over instructor salary placement and progression? Include specific rules and management rights."
+                    })
+                    st.rerun()
+            
+            with col2:
+                if st.button("📚 Professional Development Control", key="pd"):
+                    st.session_state.messages.append({
+                        "role": "user", 
+                        "content": "What authority does management have over professional development funding and approval? What are the requirements and limitations?"
+                    })
+                    st.rerun()
+                    
+                if st.button("🏫 Program Coordination Authority", key="coord"):
+                    st.session_state.messages.append({
+                        "role": "user", 
+                        "content": "What are management's rights in appointing and managing program coordinators? Include workload reduction and evaluation authority."
+                    })
+                    st.rerun()
+        
+        if agreement_scope in ["Both Agreements", "Common Agreement Only"]:
+            st.markdown("**Common Agreement Questions:**")
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                if st.button("⚖️ Discipline & Dismissal Rights", key="discipline"):
+                    st.session_state.messages.append({
+                        "role": "user", 
+                        "content": "What are management's rights regarding employee discipline and dismissal? Include burden of proof and procedural protections for management."
+                    })
+                    st.rerun()
+                    
+                if st.button("📅 Grievance Time Limits", key="grievance"):
+                    st.session_state.messages.append({
+                        "role": "user", 
+                        "content": "What time limits and procedural requirements protect management in grievance situations? Include deadlines and defenses."
+                    })
+                    st.rerun()
+            
+            with col2:
+                if st.button("🔄 Layoff Authority", key="layoff"):
+                    st.session_state.messages.append({
+                        "role": "user", 
+                        "content": "What authority does management have in layoff situations? What are the specific procedures and management rights?"
+                    })
+                    st.rerun()
+                    
+                if st.button("📊 Job Security Provisions", key="security"):
+                    st.session_state.messages.append({
+                        "role": "user", 
+                        "content": "What flexibility does management have regarding job security, contracting out, and workforce management?"
+                    })
+                    st.rerun()
+    
+    # Bottom section with stats and new chat button
+    st.markdown("---")
+    
+    # Create columns for stats and new chat button
+    col1, col2 = st.columns([3, 1])
+    
+    with col1:
+        if st.session_state.total_queries > 0:
+            st.caption(f"💬 Queries processed: {st.session_state.total_queries} | 🎯 Scope: {agreement_scope} | 🤖 Powered by Claude")
+    
+    with col2:
+        if len(st.session_state.messages) > 0:
+            if st.button("🔄 Start New Chat", type="primary", use_container_width=True):
+                clear_chat()
 
 if __name__ == "__main__":
-   main()
+    main()
