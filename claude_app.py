@@ -11,33 +11,7 @@ st.set_page_config(
     layout="wide"
 )
 
-def load_builtin_agreements() -> tuple:
-    """Load the built-in agreements from JSON files"""
-    try:
-        with open('complete_local.json', 'r', encoding='utf-8') as f:
-            local_agreement = json.load(f)
-        
-        with open('complete_common.json', 'r', encoding='utf-8') as f:
-            common_agreement = json.load(f)
-        
-        # Debug: Show what's actually in the loaded JSON
-        st.write("**JSON Loading Debug:**")
-        if local_agreement and 'articles' in local_agreement:
-            st.write(f"**Local JSON Articles Found:** {len(local_agreement['articles'])} articles")
-            st.write(f"**Local Article Keys:** {sorted(list(local_agreement['articles'].keys()))}")
-            # Check if Article 17 exists
-            if '17' in local_agreement['articles']:
-                st.write("**Article 17 found in Local Agreement ✓**")
-                # Show Article 17 title if available
-                if isinstance(local_agreement['articles']['17'], dict) and 'title' in local_agreement['articles']['17']:
-                    st.write(f"**Article 17 Title:** {local_agreement['articles']['17']['title']}")
-            else:
-                st.write("**Article 17 NOT found in Local Agreement ❌**")
-        else:
-            st.write("**Local Agreement has no articles section**")
-            
-        if common_agreement and 'articles' in common_agreement:
-            st.write(f"**Common JSON Articles Found:** {len(common_agreement['articles'])} articles")
+")
         
         return local_agreement, common_agreement
         
@@ -123,57 +97,7 @@ def generate_response(query: str, local_agreement: dict, common_agreement: dict,
         context = format_agreement_for_context(local_agreement, "Coast Mountain College Local Agreement")
         context += "\n\n" + format_agreement_for_context(common_agreement, "BCGEU Common Agreement")
     
-    # Debug: Show what's being loaded based on scope
-    st.write(f"**Debug Info:** Selected Scope: {agreement_scope}")
-    st.write(f"**Context length:** {len(context)} characters")
-    
-    # Show which agreement(s) are being processed
-    if agreement_scope == "Local Agreement Only":
-        st.write("**Processing:** Local Agreement Only")
-        if local_agreement and 'articles' in local_agreement:
-            st.write(f"**Local Agreement Articles Available:** {list(local_agreement['articles'].keys())}")
-        else:
-            st.write("**ERROR:** Local agreement not loaded or has no articles")
-    elif agreement_scope == "Common Agreement Only":
-        st.write("**Processing:** Common Agreement Only")
-        if common_agreement and 'articles' in common_agreement:
-            st.write(f"**Common Agreement Articles Available:** {list(common_agreement['articles'].keys())}")
-        else:
-            st.write("**ERROR:** Common agreement not loaded or has no articles")
-    else:  # Both agreements
-        st.write("**Processing:** Both Agreements")
-        if local_agreement and 'articles' in local_agreement:
-            st.write(f"**Local Agreement Articles:** {list(local_agreement['articles'].keys())}")
-        if common_agreement and 'articles' in common_agreement:
-            st.write(f"**Common Agreement Articles:** {list(common_agreement['articles'].keys())}")
-    
-    # Debug: Show what context actually contains
-    if "COAST MOUNTAIN COLLEGE LOCAL AGREEMENT" in context and "BCGEU COMMON AGREEMENT" in context:
-        st.write("**Context Contains:** Both Local AND Common Agreement (unexpected for Local-only selection)")
-    elif "COAST MOUNTAIN COLLEGE LOCAL AGREEMENT" in context:
-        st.write("**Context Contains:** Local Agreement Only ✓")
-    elif "BCGEU COMMON AGREEMENT" in context:
-        st.write("**Context Contains:** Common Agreement Only ✓")
-    else:
-        st.write("**Context Contains:** Unknown content")
-    
-    # Debug: Show a sample of the context content
-    st.write("**Context Preview (first 1000 chars):**")
-    st.text(context[:1000] + "..." if len(context) > 1000 else context)
-    
-    # Check if vacation-related content exists
-    vacation_keywords = ["vacation", "annual leave", "leave of absence", "holiday"]
-    found_keywords = [kw for kw in vacation_keywords if kw.lower() in context.lower()]
-    st.write(f"**Vacation-related keywords found:** {found_keywords}")
-    
-    # Additional debug: Check if vacation content is in a specific agreement
-    if "vacation" in context.lower():
-        st.write("**Vacation content found in context**")
-        # Find which sections contain vacation
-        vacation_lines = [line for line in context.split('\n') if 'vacation' in line.lower()]
-        st.write(f"**Vacation mentions (first 5):** {vacation_lines[:5]}")
-    else:
-        st.write("**No vacation content found in context - this might be why Claude can't answer**")
+
     
     system_prompt = f"""You are an experienced HR professional and collective agreement specialist for Coast Mountain College with 15+ years of expertise in labor relations and agreement interpretation. Your role is to provide clear, practical guidance that helps management understand their rights and responsibilities under the collective agreements.
 
