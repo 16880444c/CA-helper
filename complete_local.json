@@ -2490,20 +2490,11 @@
       "timeline": "The committee will begin meeting one month following ratification of the Collective Agreement and complete their duties within one calendar year"
     }
   },
-  "memorandum_of_understanding": {
-    "title": "Re: Article 23.8 - Legislative Changes",
-    "employer_health_tax": "Changes to the Employer Health Tax or any other premium imposed for purposes similar to the Medical Service Plan premium are excluded and will not be required to be used to increase other employee benefits",
-    "msp_elimination": "If the Employer Health Tax is eliminated and not replaced with another form of Employer paid benefits, Article 23.8 will be triggered",
-    "liability_calculation": "If Article 23.8 is triggered, the liability arising from the amount of savings from the legislative changes to the MSP savings is based on 2017",
-    "dispute_resolution": "If the parties cannot agree, any party may refer the matter to arbitration"
-  },
-  "document_completion": {
-    "status": "This JSON conversion includes Articles 21-35, all Appendices (1-3), and all Letters of Agreement (1-8) as requested",
-    "total_articles_converted": "Articles 21 through 35 (15 articles)",
-    "appendices_included": 3,
-    "letters_of_agreement_included": 8,
-    "memorandum_of_understanding_included": 1,
-    "structure_maintained": "JSON structure consistent with established format from Articles 1-20",
-    "detail_level": "Comprehensive conversion maintaining all subsections, clauses, and detailed provisions"
-  }
+"memorandum_of_understanding": {
+  "title": "Re: Article 23.8 - Legislative Changes",
+  "employer_health_tax": "Changes to the Employer Health Tax or any other premium imposed for purposes similar to the Medical Service Plan premium are excluded and will not be required to be used to increase other employee benefits",
+  "msp_elimination": "If the Employer Health Tax is eliminated and not replaced with another form of Employer paid benefits, Article 23.8 will be triggered",
+  "liability_calculation": "If Article 23.8 is triggered, the liability arising from the amount of savings from the legislative changes to the MSP savings is based on 2017",
+  "dispute_resolution": "If the parties cannot agree, any party may refer the matter to arbitration"
+}
 }
