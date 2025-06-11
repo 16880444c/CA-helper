@@ -2172,6 +2172,7 @@
             "All agreed to changes to the Agreement shall be retroactive to April 1, 2019 unless otherwise specified"
           ]
         }
+      }
   },
   "appendices": {
     "appendix_1": {
@@ -2496,5 +2497,6 @@
   "msp_elimination": "If the Employer Health Tax is eliminated and not replaced with another form of Employer paid benefits, Article 23.8 will be triggered",
   "liability_calculation": "If Article 23.8 is triggered, the liability arising from the amount of savings from the legislative changes to the MSP savings is based on 2017",
   "dispute_resolution": "If the parties cannot agree, any party may refer the matter to arbitration"
+}
 }
 }
