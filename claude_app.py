@@ -24,10 +24,18 @@ def load_builtin_agreements() -> tuple:
         st.write("**JSON Loading Debug:**")
         if local_agreement:
             st.write(f"**Local JSON loaded successfully:** {len(local_agreement)} top-level keys")
+            st.write(f"**Top-level keys:** {list(local_agreement.keys())}")
+            
             if 'articles' in local_agreement:
                 articles = local_agreement['articles']
                 st.write(f"**Local Articles Found:** {len(articles)} articles")
                 st.write(f"**Article Keys:** {sorted(list(articles.keys()))}")
+                
+                # Show first few and last few article keys to see the range
+                all_keys = sorted(list(articles.keys()))
+                if len(all_keys) > 10:
+                    st.write(f"**First 5 articles:** {all_keys[:5]}")
+                    st.write(f"**Last 5 articles:** {all_keys[-5:]}")
                 
                 # Check if Article 17 exists
                 if '17' in articles:
@@ -40,9 +48,20 @@ def load_builtin_agreements() -> tuple:
                         st.write("**✓ Article 17.8 (Vacation Carryover) found**")
                 else:
                     st.write("**❌ Article 17 NOT found in loaded JSON**")
+                    
+                # Check for any article with "17" in the key (in case it's stored differently)
+                seventeen_variants = [key for key in articles.keys() if '17' in str(key)]
+                if seventeen_variants:
+                    st.write(f"**Articles containing '17':** {seventeen_variants}")
+                    
             else:
                 st.write("**❌ No 'articles' key in local JSON**")
                 st.write(f"**Available keys:** {list(local_agreement.keys())}")
+                
+            # Check file size and structure
+            import sys
+            json_size = sys.getsizeof(local_agreement)
+            st.write(f"**JSON object size:** {json_size} bytes")
         
         return local_agreement, common_agreement
         
