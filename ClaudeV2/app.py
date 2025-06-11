@@ -11,8 +11,44 @@ st.set_page_config(
     layout="wide"
 )
 
+def test_json_loading():
+    """Test JSON loading to diagnose the issue"""
+    st.write("🔧 JSON LOADING DIAGNOSTICS:")
+    try:
+        with open('complete_local.json', 'r', encoding='utf-8') as f:
+            content = f.read()
+            st.write(f"- File size: {len(content):,} characters")
+            st.write(f"- Last 200 characters: {content[-200:]}")
+            
+            data = json.loads(content)
+            st.write(f"- Top level keys after JSON parse: {list(data.keys())}")
+            if 'appendices' in data:
+                st.write(f"- Appendices keys: {list(data['appendices'].keys())}")
+                if 'appendix_3' in data['appendices']:
+                    st.write("✅ Appendix 3 found in parsed JSON!")
+                    st.write(f"- Appendix 3 keys: {list(data['appendices']['appendix_3'].keys())}")
+                else:
+                    st.write("❌ Appendix 3 NOT found in parsed JSON")
+            else:
+                st.write("❌ No appendices section in parsed JSON")
+                
+            # Check if appendices content is elsewhere
+            full_text = json.dumps(data).lower()
+            if "program coordination" in full_text:
+                st.write("✅ 'program coordination' text found somewhere in JSON")
+            if "appendix 3" in full_text:
+                st.write("✅ 'appendix 3' text found somewhere in JSON")
+                
+    except Exception as e:
+        st.error(f"JSON loading error: {e}")
+
 def load_builtin_agreements() -> tuple:
     """Load the built-in agreements from JSON files"""
+    st.write("🔍 LOADING AGREEMENTS...")
+    
+    # First run the diagnostic
+    test_json_loading()
+    
     try:
         with open('complete_local.json', 'r', encoding='utf-8') as f:
             local_agreement = json.load(f)
@@ -21,10 +57,12 @@ def load_builtin_agreements() -> tuple:
             common_agreement = json.load(f)
         
         # DEBUG: Print what we loaded
-        st.write("🔍 DEBUG: Local Agreement Structure:")
-        st.write(f"- Top-level keys: {list(local_agreement.keys())}")
+        st.write("🔍 LOAD RESULTS:")
+        st.write(f"- Local agreement type: {type(local_agreement)}")
+        st.write(f"- Local agreement top-level keys: {list(local_agreement.keys())}")
+        
         if 'appendices' in local_agreement:
-            st.write(f"- Appendices found: {list(local_agreement['appendices'].keys())}")
+            st.write(f"✅ Appendices found: {list(local_agreement['appendices'].keys())}")
             if 'appendix_3' in local_agreement['appendices']:
                 st.write("✅ Appendix 3 found in local agreement!")
                 st.write(f"- Appendix 3 title: {local_agreement['appendices']['appendix_3'].get('title', 'No title')}")
@@ -33,6 +71,19 @@ def load_builtin_agreements() -> tuple:
                 st.write("❌ Appendix 3 NOT found in local agreement")
         else:
             st.write("❌ No appendices section found in local agreement")
+            # Check if it's nested somewhere else
+            st.write("🔍 Searching for appendices in other locations...")
+            def search_for_appendices(obj, path=""):
+                if isinstance(obj, dict):
+                    for key, value in obj.items():
+                        if 'appendix' in key.lower():
+                            st.write(f"Found appendix-related key at {path}.{key}")
+                        search_for_appendices(value, f"{path}.{key}")
+                elif isinstance(obj, list):
+                    for i, item in enumerate(obj):
+                        search_for_appendices(item, f"{path}[{i}]")
+            
+            search_for_appendices(local_agreement)
         
         return local_agreement, common_agreement
         
@@ -49,12 +100,15 @@ def load_builtin_agreements() -> tuple:
 
 def format_agreement_for_context(agreement: dict, agreement_name: str) -> str:
     """Convert agreement JSON to formatted text for Claude context"""
+    st.write(f"🔍 FORMATTING CONTEXT FOR: {agreement_name}")
+    
     context = f"=== {agreement_name.upper()} ===\n\n"
     
     # Add metadata
     if 'agreement_metadata' in agreement:
         context += "AGREEMENT METADATA:\n"
         context += json.dumps(agreement['agreement_metadata'], indent=2) + "\n\n"
+        st.write("✅ Added metadata")
     
     # Add definitions
     if 'definitions' in agreement:
@@ -62,14 +116,17 @@ def format_agreement_for_context(agreement: dict, agreement_name: str) -> str:
         for term, definition in agreement['definitions'].items():
             context += f"- {term}: {definition}\n"
         context += "\n"
+        st.write(f"✅ Added {len(agreement['definitions'])} definitions")
     
     # Add articles
     if 'articles' in agreement:
         context += "ARTICLES:\n\n"
+        article_count = 0
         for article_num, article_data in agreement['articles'].items():
             if isinstance(article_data, dict):
                 title = article_data.get('title', f'Article {article_num}')
                 context += f"ARTICLE {article_num}: {title}\n"
+                article_count += 1
                 
                 # Add sections
                 if 'sections' in article_data:
@@ -92,75 +149,129 @@ def format_agreement_for_context(agreement: dict, agreement_name: str) -> str:
                     context += f"\n{article_data['content']}\n"
                 
                 context += "\n" + "="*50 + "\n\n"
-    
-    # Add appendices with debug info
-    if 'appendices' in agreement:
-        context += "APPENDICES:\n\n"
-        st.write(f"🔍 DEBUG: Processing appendices for {agreement_name}")
-        st.write(f"- Found appendices: {list(agreement['appendices'].keys())}")
         
-        for appendix_key, appendix_data in agreement['appendices'].items():
-            st.write(f"- Processing appendix: {appendix_key}")
+        st.write(f"✅ Added {article_count} articles")
+    
+    # Add appendices with extensive debug info
+    if 'appendices' in agreement:
+        st.write(f"🔍 PROCESSING APPENDICES...")
+        context += "APPENDICES:\n\n"
+        appendices = agreement['appendices']
+        st.write(f"- Appendices type: {type(appendices)}")
+        st.write(f"- Appendices keys: {list(appendices.keys())}")
+        
+        appendix_count = 0
+        for appendix_key, appendix_data in appendices.items():
+            st.write(f"- Processing appendix: '{appendix_key}' (type: {type(appendix_data)})")
             
             # Convert appendix_3 to "APPENDIX 3" for better readability
             display_key = appendix_key.replace('_', ' ').upper()
             context += f"{display_key}:\n"
+            st.write(f"  - Display key: '{display_key}'")
             
             if isinstance(appendix_data, dict):
                 if 'title' in appendix_data:
                     context += f"Title: {appendix_data['title']}\n\n"
+                    st.write(f"  - Title: {appendix_data['title']}")
+                
+                # Add the full appendix content
                 context += json.dumps(appendix_data, indent=2)
+                st.write(f"  - Added {len(str(appendix_data))} characters of content")
             else:
                 context += str(appendix_data)
+                st.write(f"  - Added non-dict content: {type(appendix_data)}")
+            
             context += "\n\n" + "="*50 + "\n\n"
+            appendix_count += 1
             
             # Special debug for Appendix 3
             if appendix_key == 'appendix_3':
-                st.write("✅ Successfully processed Appendix 3!")
-                st.write(f"- Display key: {display_key}")
-                st.write(f"- Data type: {type(appendix_data)}")
-                if isinstance(appendix_data, dict):
-                    st.write(f"- Content keys: {list(appendix_data.keys())}")
+                st.write("✅ SUCCESS: Processed Appendix 3!")
+                st.write(f"  - Final display key: '{display_key}'")
+                st.write(f"  - Content preview: {str(appendix_data)[:200]}...")
+        
+        st.write(f"✅ Processed {appendix_count} appendices total")
     else:
-        st.write(f"❌ DEBUG: No appendices found in {agreement_name}")
+        st.write(f"❌ NO APPENDICES SECTION in {agreement_name}")
+        # Check if appendices might be stored elsewhere
+        st.write("🔍 Searching entire agreement for appendix-related content...")
+        full_agreement_text = json.dumps(agreement).lower()
+        if "appendix" in full_agreement_text:
+            st.write("✅ Found 'appendix' text somewhere in agreement")
+            # Count occurrences
+            appendix_count = full_agreement_text.count("appendix")
+            st.write(f"  - 'appendix' appears {appendix_count} times")
+        if "program coordination" in full_agreement_text:
+            st.write("✅ Found 'program coordination' text in agreement")
     
-    # DEBUG: Show context length and search for "appendix 3" or "program coordination"
-    st.write(f"🔍 DEBUG: Context length for {agreement_name}: {len(context)} characters")
-    if "appendix 3" in context.lower():
-        st.write("✅ 'appendix 3' found in context (case insensitive)")
-    else:
-        st.write("❌ 'appendix 3' NOT found in context")
+    # Final context debug
+    final_length = len(context)
+    st.write(f"🔍 FINAL CONTEXT STATS:")
+    st.write(f"- Total context length: {final_length:,} characters")
     
-    if "program coordination" in context.lower():
-        st.write("✅ 'program coordination' found in context")
+    # Search for key terms in final context
+    context_lower = context.lower()
+    if "appendix 3" in context_lower:
+        st.write("✅ 'appendix 3' found in final context")
+        appendix_3_positions = []
+        start = 0
+        while True:
+            pos = context_lower.find("appendix 3", start)
+            if pos == -1:
+                break
+            appendix_3_positions.append(pos)
+            start = pos + 1
+        st.write(f"  - Found at positions: {appendix_3_positions}")
     else:
-        st.write("❌ 'program coordination' NOT found in context")
+        st.write("❌ 'appendix 3' NOT found in final context")
+    
+    if "program coordination" in context_lower:
+        st.write("✅ 'program coordination' found in final context")
+    else:
+        st.write("❌ 'program coordination' NOT found in final context")
+    
+    # Show context sample around appendices
+    appendices_pos = context_lower.find("appendices:")
+    if appendices_pos >= 0:
+        st.write("🔍 CONTEXT AROUND APPENDICES SECTION:")
+        sample_start = max(0, appendices_pos - 100)
+        sample_end = min(len(context), appendices_pos + 500)
+        sample = context[sample_start:sample_end]
+        st.code(sample)
     
     return context
 
 def generate_response(query: str, local_agreement: dict, common_agreement: dict, agreement_scope: str, api_key: str) -> str:
     """Generate response using Claude with complete agreement context"""
     
+    st.write(f"🔍 GENERATING RESPONSE for scope: {agreement_scope}")
+    
     # Build context based on selected scope
     context = ""
     if agreement_scope == "Local Agreement Only":
-        st.write("🔍 DEBUG: Building context from Local Agreement only")
+        st.write("🔍 Building context from Local Agreement only")
         context = format_agreement_for_context(local_agreement, "Coast Mountain College Local Agreement")
     elif agreement_scope == "Common Agreement Only":
-        st.write("🔍 DEBUG: Building context from Common Agreement only")
+        st.write("🔍 Building context from Common Agreement only")
         context = format_agreement_for_context(common_agreement, "BCGEU Common Agreement")
     else:  # Both agreements
-        st.write("🔍 DEBUG: Building context from both agreements")
+        st.write("🔍 Building context from both agreements")
         context = format_agreement_for_context(local_agreement, "Coast Mountain College Local Agreement")
         context += "\n\n" + format_agreement_for_context(common_agreement, "BCGEU Common Agreement")
     
-    # Final context debug
-    st.write(f"🔍 DEBUG: Final context length: {len(context)} characters")
-    st.write(f"🔍 DEBUG: Query contains 'appendix 3': {'appendix 3' in query.lower()}")
+    # Final pre-send debug
+    st.write(f"🔍 PRE-SEND FINAL CHECK:")
+    st.write(f"- Final context length: {len(context):,} characters")
+    st.write(f"- Query contains 'appendix 3': {'appendix 3' in query.lower()}")
+    st.write(f"- Context contains 'appendix 3': {'appendix 3' in context.lower()}")
+    st.write(f"- Context contains 'program coordination': {'program coordination' in context.lower()}")
     
-    # Show a sample of the context
-    st.write("🔍 DEBUG: Context sample (first 500 chars):")
-    st.code(context[:500] + "..." if len(context) > 500 else context)
+    # Show first and last parts of context
+    st.write("🔍 CONTEXT PREVIEW:")
+    st.write("First 300 chars:")
+    st.code(context[:300])
+    st.write("Last 300 chars:")
+    st.code(context[-300:])
     
     system_prompt = f"""You are an experienced HR professional and collective agreement specialist for Coast Mountain College with 15+ years of expertise in labor relations and agreement interpretation. Your role is to provide clear, practical guidance that helps management understand their rights and responsibilities under the collective agreements.
 
