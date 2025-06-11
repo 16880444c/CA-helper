@@ -11,13 +11,47 @@ st.set_page_config(
     layout="wide"
 )
 
-")
+def load_builtin_agreements() -> tuple:
+    """Load the built-in agreements from JSON files"""
+    try:
+        with open('complete_local.json', 'r', encoding='utf-8') as f:
+            local_agreement = json.load(f)
+        
+        with open('complete_common.json', 'r', encoding='utf-8') as f:
+            common_agreement = json.load(f)
+        
+        # Debug JSON loading
+        st.write("**JSON Loading Debug:**")
+        if local_agreement:
+            st.write(f"**Local JSON loaded successfully:** {len(local_agreement)} top-level keys")
+            if 'articles' in local_agreement:
+                articles = local_agreement['articles']
+                st.write(f"**Local Articles Found:** {len(articles)} articles")
+                st.write(f"**Article Keys:** {sorted(list(articles.keys()))}")
+                
+                # Check if Article 17 exists
+                if '17' in articles:
+                    st.write("**✓ Article 17 found in JSON**")
+                    article_17 = articles['17']
+                    if isinstance(article_17, dict) and 'title' in article_17:
+                        st.write(f"**Article 17 Title:** {article_17['title']}")
+                    # Check for vacation carryover section
+                    if 'sections' in article_17 and '17.8' in article_17['sections']:
+                        st.write("**✓ Article 17.8 (Vacation Carryover) found**")
+                else:
+                    st.write("**❌ Article 17 NOT found in loaded JSON**")
+            else:
+                st.write("**❌ No 'articles' key in local JSON**")
+                st.write(f"**Available keys:** {list(local_agreement.keys())}")
         
         return local_agreement, common_agreement
         
     except FileNotFoundError as e:
         st.error(f"JSON files not found: {str(e)}")
         st.error("Please ensure 'complete_local.json' and 'complete_common.json' are in the same directory as this app.")
+        return None, None
+    except json.JSONDecodeError as e:
+        st.error(f"JSON parsing error: {e}")
         return None, None
     except Exception as e:
         st.error(f"Error loading built-in agreements: {e}")
@@ -96,8 +130,6 @@ def generate_response(query: str, local_agreement: dict, common_agreement: dict,
     else:  # Both agreements
         context = format_agreement_for_context(local_agreement, "Coast Mountain College Local Agreement")
         context += "\n\n" + format_agreement_for_context(common_agreement, "BCGEU Common Agreement")
-    
-
     
     system_prompt = f"""You are an experienced HR professional and collective agreement specialist for Coast Mountain College with 15+ years of expertise in labor relations and agreement interpretation. Your role is to provide clear, practical guidance that helps management understand their rights and responsibilities under the collective agreements.
 
