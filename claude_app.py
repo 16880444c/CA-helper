@@ -20,6 +20,25 @@ def load_builtin_agreements() -> tuple:
         with open('complete_common.json', 'r', encoding='utf-8') as f:
             common_agreement = json.load(f)
         
+        # Debug: Show what's actually in the loaded JSON
+        st.write("**JSON Loading Debug:**")
+        if local_agreement and 'articles' in local_agreement:
+            st.write(f"**Local JSON Articles Found:** {len(local_agreement['articles'])} articles")
+            st.write(f"**Local Article Keys:** {sorted(list(local_agreement['articles'].keys()))}")
+            # Check if Article 17 exists
+            if '17' in local_agreement['articles']:
+                st.write("**Article 17 found in Local Agreement ✓**")
+                # Show Article 17 title if available
+                if isinstance(local_agreement['articles']['17'], dict) and 'title' in local_agreement['articles']['17']:
+                    st.write(f"**Article 17 Title:** {local_agreement['articles']['17']['title']}")
+            else:
+                st.write("**Article 17 NOT found in Local Agreement ❌**")
+        else:
+            st.write("**Local Agreement has no articles section**")
+            
+        if common_agreement and 'articles' in common_agreement:
+            st.write(f"**Common JSON Articles Found:** {len(common_agreement['articles'])} articles")
+        
         return local_agreement, common_agreement
         
     except FileNotFoundError as e:
@@ -108,22 +127,35 @@ def generate_response(query: str, local_agreement: dict, common_agreement: dict,
     st.write(f"**Debug Info:** Selected Scope: {agreement_scope}")
     st.write(f"**Context length:** {len(context)} characters")
     
-    # Show articles based on selected scope
+    # Show which agreement(s) are being processed
     if agreement_scope == "Local Agreement Only":
+        st.write("**Processing:** Local Agreement Only")
         if local_agreement and 'articles' in local_agreement:
-            st.write(f"**Local Agreement Articles (Selected):** {list(local_agreement['articles'].keys())}")
+            st.write(f"**Local Agreement Articles Available:** {list(local_agreement['articles'].keys())}")
         else:
             st.write("**ERROR:** Local agreement not loaded or has no articles")
     elif agreement_scope == "Common Agreement Only":
+        st.write("**Processing:** Common Agreement Only")
         if common_agreement and 'articles' in common_agreement:
-            st.write(f"**Common Agreement Articles (Selected):** {list(common_agreement['articles'].keys())}")
+            st.write(f"**Common Agreement Articles Available:** {list(common_agreement['articles'].keys())}")
         else:
             st.write("**ERROR:** Common agreement not loaded or has no articles")
     else:  # Both agreements
+        st.write("**Processing:** Both Agreements")
         if local_agreement and 'articles' in local_agreement:
             st.write(f"**Local Agreement Articles:** {list(local_agreement['articles'].keys())}")
         if common_agreement and 'articles' in common_agreement:
             st.write(f"**Common Agreement Articles:** {list(common_agreement['articles'].keys())}")
+    
+    # Debug: Show what context actually contains
+    if "COAST MOUNTAIN COLLEGE LOCAL AGREEMENT" in context and "BCGEU COMMON AGREEMENT" in context:
+        st.write("**Context Contains:** Both Local AND Common Agreement (unexpected for Local-only selection)")
+    elif "COAST MOUNTAIN COLLEGE LOCAL AGREEMENT" in context:
+        st.write("**Context Contains:** Local Agreement Only ✓")
+    elif "BCGEU COMMON AGREEMENT" in context:
+        st.write("**Context Contains:** Common Agreement Only ✓")
+    else:
+        st.write("**Context Contains:** Unknown content")
     
     # Debug: Show a sample of the context content
     st.write("**Context Preview (first 1000 chars):**")
