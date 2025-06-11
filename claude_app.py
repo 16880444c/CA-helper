@@ -20,49 +20,6 @@ def load_builtin_agreements() -> tuple:
         with open('complete_common.json', 'r', encoding='utf-8') as f:
             common_agreement = json.load(f)
         
-        # Debug JSON loading
-        st.write("**JSON Loading Debug:**")
-        if local_agreement:
-            st.write(f"**Local JSON loaded successfully:** {len(local_agreement)} top-level keys")
-            st.write(f"**Top-level keys:** {list(local_agreement.keys())}")
-            
-            if 'articles' in local_agreement:
-                articles = local_agreement['articles']
-                st.write(f"**Local Articles Found:** {len(articles)} articles")
-                st.write(f"**Article Keys:** {sorted(list(articles.keys()))}")
-                
-                # Show first few and last few article keys to see the range
-                all_keys = sorted(list(articles.keys()))
-                if len(all_keys) > 10:
-                    st.write(f"**First 5 articles:** {all_keys[:5]}")
-                    st.write(f"**Last 5 articles:** {all_keys[-5:]}")
-                
-                # Check if Article 17 exists
-                if '17' in articles:
-                    st.write("**✓ Article 17 found in JSON**")
-                    article_17 = articles['17']
-                    if isinstance(article_17, dict) and 'title' in article_17:
-                        st.write(f"**Article 17 Title:** {article_17['title']}")
-                    # Check for vacation carryover section
-                    if 'sections' in article_17 and '17.8' in article_17['sections']:
-                        st.write("**✓ Article 17.8 (Vacation Carryover) found**")
-                else:
-                    st.write("**❌ Article 17 NOT found in loaded JSON**")
-                    
-                # Check for any article with "17" in the key (in case it's stored differently)
-                seventeen_variants = [key for key in articles.keys() if '17' in str(key)]
-                if seventeen_variants:
-                    st.write(f"**Articles containing '17':** {seventeen_variants}")
-                    
-            else:
-                st.write("**❌ No 'articles' key in local JSON**")
-                st.write(f"**Available keys:** {list(local_agreement.keys())}")
-                
-            # Check file size and structure
-            import sys
-            json_size = sys.getsizeof(local_agreement)
-            st.write(f"**JSON object size:** {json_size} bytes")
-        
         return local_agreement, common_agreement
         
     except FileNotFoundError as e:
@@ -226,6 +183,11 @@ Provide definitive, management-favorable guidance with specific citations and qu
     except Exception as e:
         return f"Error generating response: {e}"
 
+def clear_chat():
+    """Clear the chat history"""
+    st.session_state.messages = []
+    st.rerun()
+
 def main():
     st.title("⚖️ Coast Mountain College Agreement Assistant")
     st.markdown("*Complete collective agreement analysis with management-focused guidance (Powered by Claude)*")
@@ -272,15 +234,6 @@ def main():
         # Load agreements when user submits question
         with st.spinner("Loading agreements..."):
             local_agreement, common_agreement = load_builtin_agreements()
-            
-            # Additional debugging right after loading
-            if local_agreement and 'articles' in local_agreement:
-                st.write(f"**After Loading - Local Articles Count:** {len(local_agreement['articles'])}")
-                st.write(f"**Article Keys:** {sorted(list(local_agreement['articles'].keys()))}")
-                if '17' in local_agreement['articles']:
-                    st.write("**✓ Article 17 IS in the loaded data**")
-                else:
-                    st.write("**❌ Article 17 is NOT in the loaded data**")
             
             if not local_agreement or not common_agreement:
                 st.error("❌ Could not load agreement files. Please check that the JSON files are available.")
@@ -376,10 +329,20 @@ def main():
                     })
                     st.rerun()
     
-    # Simple stats at bottom
-    if st.session_state.total_queries > 0:
-        st.markdown("---")
-        st.caption(f"💬 Queries processed: {st.session_state.total_queries} | 🎯 Scope: {agreement_scope} | 🤖 Powered by Claude")
+    # Bottom section with stats and new chat button
+    st.markdown("---")
+    
+    # Create columns for stats and new chat button
+    col1, col2 = st.columns([3, 1])
+    
+    with col1:
+        if st.session_state.total_queries > 0:
+            st.caption(f"💬 Queries processed: {st.session_state.total_queries} | 🎯 Scope: {agreement_scope} | 🤖 Powered by Claude")
+    
+    with col2:
+        if len(st.session_state.messages) > 0:
+            if st.button("🔄 Start New Chat", type="primary", use_container_width=True):
+                clear_chat()
 
 if __name__ == "__main__":
     main()
