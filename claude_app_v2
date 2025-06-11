@@ -232,7 +232,8 @@ def main():
             st.markdown(message["content"])
     
     # Chat input
-    if prompt := st.chat_input("Ask about collective agreement provisions..."):
+    prompt = st.chat_input("Ask about collective agreement provisions...")
+    if prompt:
         # Load agreements when user submits question
         with st.spinner("Loading agreements..."):
             local_agreement, common_agreement = load_builtin_agreements()
