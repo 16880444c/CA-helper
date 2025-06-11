@@ -1,6 +1,6 @@
 import streamlit as st
 import json
-import openai
+import anthropic
 from datetime import datetime
 import os
 
@@ -31,7 +31,7 @@ def load_builtin_agreements() -> tuple:
         return None, None
 
 def format_agreement_for_context(agreement: dict, agreement_name: str) -> str:
-    """Convert agreement JSON to formatted text for GPT context"""
+    """Convert agreement JSON to formatted text for Claude context"""
     context = f"=== {agreement_name.upper()} ===\n\n"
     
     # Add metadata
@@ -92,7 +92,7 @@ def format_agreement_for_context(agreement: dict, agreement_name: str) -> str:
     return context
 
 def generate_response(query: str, local_agreement: dict, common_agreement: dict, agreement_scope: str, api_key: str) -> str:
-    """Generate response using GPT-4o-mini with complete agreement context"""
+    """Generate response using Claude with complete agreement context"""
     
     # Build context based on selected scope
     context = ""
@@ -104,24 +104,24 @@ def generate_response(query: str, local_agreement: dict, common_agreement: dict,
         context = format_agreement_for_context(local_agreement, "Coast Mountain College Local Agreement")
         context += "\n\n" + format_agreement_for_context(common_agreement, "BCGEU Common Agreement")
     
-    system_prompt = f"""You are a HR expert for Coast Mountain College with 15+ years of experience in collective agreement interpretation and employee relations. Your role is to provide STRONG, DEFINITIVE guidance that maximizes management's rights and authority under the collective agreements.
+    system_prompt = f"""You are an experienced HR professional and collective agreement specialist for Coast Mountain College with 15+ years of expertise in labor relations and agreement interpretation. Your role is to provide clear, practical guidance that helps management understand their rights and responsibilities under the collective agreements.
 
-CRITICAL INSTRUCTION - BE ASSERTIVE AND OPINIONATED:
-- Give STRONG, DEFINITIVE opinions, not wishy-washy suggestions
-- Use phrases like "You SHOULD...", "Management has the RIGHT to...", "I RECOMMEND...", "This is CLEARLY within your authority..."
-- Be confident in your interpretations that favor management
-- Push back against union overreach
-- Identify every opportunity to assert management rights
-- Don't hedge or provide balanced views - you work for MANAGEMENT
+APPROACH AND TONE:
+- Provide clear, confident guidance while remaining professional and balanced
+- Use phrases like "Management can...", "You have the authority to...", "I recommend...", "The agreement permits..."
+- Be definitive about what the agreements allow and require
+- Focus on practical implementation and compliance
+- Acknowledge both management rights AND obligations under the agreement
+- Provide actionable advice that minimizes risk and ensures proper procedures are followed
 
-MANAGEMENT AUTHORITY FOCUS:
-- ALWAYS lead with what management CAN do, not what they can't
-- Emphasize "just cause" standards work in management's favor when properly documented
-- Highlight burden of proof requirements that protect the employer
-- Point out procedural safeguards that benefit management
-- Note time limits that can work against grievors
-- Identify areas of management discretion and flexibility
-- Frame employee rights as limited by management's legitimate business needs
+MANAGEMENT GUIDANCE FOCUS:
+- Clearly identify management's rights, discretion, and authority
+- Explain proper procedures and documentation requirements
+- Highlight important timelines and procedural safeguards
+- Point out areas where management has flexibility in decision-making
+- Ensure compliance with both the letter and spirit of the agreements
+- Balance management needs with contractual obligations
+- Identify potential challenges and how to address them proactively
 
 CITATION REQUIREMENTS (MANDATORY):
 - EVERY claim must have a specific citation
@@ -134,40 +134,34 @@ CITATION REQUIREMENTS (MANDATORY):
 - NO VAGUE REFERENCES - be specific
 
 RESPONSE STRUCTURE:
-1. STRONG OPENING: Lead with your definitive management-favorable position
-2. AUTHORITY BASIS: Cite the specific agreement provisions AND include relevant quotes that support this position
-3. TACTICAL ADVICE: Provide specific steps management should take
-4. RISK MITIGATION: Identify potential union challenges and how to counter them
-5. BOTTOM LINE: End with a clear, actionable recommendation
+1. CLEAR SUMMARY: Lead with your assessment of management's position and authority
+2. AGREEMENT BASIS: Cite the specific agreement provisions AND include relevant quotes that support this analysis
+3. PRACTICAL GUIDANCE: Provide specific steps and recommendations for management
+4. COMPLIANCE CONSIDERATIONS: Note important procedures, timelines, and potential issues
+5. RECOMMENDATION: End with a clear, actionable course of action
 
-TONE EXAMPLES:
-- Instead of: "You may be able to..." → "You HAVE THE RIGHT to..."
-- Instead of: "Consider whether..." → "You SHOULD immediately..."
-- Instead of: "This might be justified..." → "This is CLEARLY within your management authority because..."
-- Instead of: "The agreement allows..." → "Management is EXPLICITLY authorized to..."
+Remember: You are management's trusted advisor. Your goal is to help them operate effectively within the collective agreement framework while protecting institutional interests and maintaining positive labor relations.
 
-Remember: You are not a neutral arbitrator. You are MANAGEMENT'S advisor. Your job is to help them maximize their authority while staying within the collective agreement. Be bold, be confident, and always look for the management-favorable interpretation."""
+COLLECTIVE AGREEMENT CONTENT:
+{context}"""
 
-    user_prompt = f"""Based on the complete collective agreement provisions below, provide strong management-focused guidance for this question:
+    user_message = f"""Based on the complete collective agreement provisions provided in the system prompt, provide strong management-focused guidance for this question:
 
 QUESTION: {query}
 
-COMPLETE COLLECTIVE AGREEMENT CONTENT:
-{context}
-
 Provide definitive, management-favorable guidance with specific citations and quotes from the agreement text."""
 
-    client = openai.OpenAI(api_key=api_key)
+    client = anthropic.Anthropic(api_key=api_key)
     
     try:
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",  # Much more cost-effective
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
-            ],
+        response = client.messages.create(
+            model="claude-3-5-sonnet-20241022",
             max_tokens=1500,
-            temperature=0.1
+            temperature=0.1,
+            system=system_prompt,
+            messages=[
+                {"role": "user", "content": user_message}
+            ]
         )
         
         # Update usage stats
@@ -175,13 +169,13 @@ Provide definitive, management-favorable guidance with specific citations and qu
             st.session_state.total_queries = 0
         st.session_state.total_queries += 1
         
-        return response.choices[0].message.content
+        return response.content[0].text
     except Exception as e:
         return f"Error generating response: {e}"
 
 def main():
     st.title("⚖️ Coast Mountain College Agreement Assistant")
-    st.markdown("*Complete collective agreement analysis with management-focused guidance*")
+    st.markdown("*Complete collective agreement analysis with management-focused guidance (Powered by Claude)*")
     
     # Initialize session state
     if 'messages' not in st.session_state:
@@ -192,15 +186,15 @@ def main():
     # Get API key
     api_key = None
     try:
-        api_key = st.secrets["OPENAI_API_KEY"]
+        api_key = st.secrets["ANTHROPIC_API_KEY"]
     except:
         try:
-            api_key = os.getenv("OPENAI_API_KEY")
+            api_key = os.getenv("ANTHROPIC_API_KEY")
         except:
             pass
     
     if not api_key:
-        st.error("🔑 OpenAI API key not found. Please set it in Streamlit secrets or environment variables.")
+        st.error("🔑 Anthropic API key not found. Please set it in Streamlit secrets or environment variables.")
         st.stop()
     
     # Agreement Selection (prominent, no sidebar)
@@ -323,7 +317,7 @@ def main():
     # Simple stats at bottom
     if st.session_state.total_queries > 0:
         st.markdown("---")
-        st.caption(f"💬 Queries processed: {st.session_state.total_queries} | 🎯 Scope: {agreement_scope}")
+        st.caption(f"💬 Queries processed: {st.session_state.total_queries} | 🎯 Scope: {agreement_scope} | 🤖 Powered by Claude")
 
 if __name__ == "__main__":
     main()
