@@ -11,7 +11,7 @@ st.set_page_config(
     layout="wide"
 )
 
-def load_builtin_agreements():
+def load_builtin_agreements() -> tuple:
     """Load the built-in agreements from JSON files"""
     try:
         with open('complete_local.json', 'r', encoding='utf-8') as f:
@@ -33,7 +33,7 @@ def load_builtin_agreements():
         st.error(f"Error loading built-in agreements: {e}")
         return None, None
 
-def format_agreement_for_context(agreement, agreement_name):
+def format_agreement_for_context(agreement: dict, agreement_name: str) -> str:
     """Convert agreement JSON to formatted text for Claude context"""
     context = f"=== {agreement_name.upper()} ===\n\n"
     
@@ -83,9 +83,7 @@ def format_agreement_for_context(agreement, agreement_name):
     if 'appendices' in agreement:
         context += "APPENDICES:\n\n"
         for appendix_key, appendix_data in agreement['appendices'].items():
-            # Convert appendix_3 to "APPENDIX 3" for better readability
-            display_key = appendix_key.replace('_', ' ').upper()
-            context += f"{display_key}:\n"
+            context += f"APPENDIX {appendix_key.upper()}:\n"
             if isinstance(appendix_data, dict):
                 if 'title' in appendix_data:
                     context += f"Title: {appendix_data['title']}\n\n"
@@ -96,7 +94,7 @@ def format_agreement_for_context(agreement, agreement_name):
     
     return context
 
-def generate_response(query, local_agreement, common_agreement, agreement_scope, api_key):
+def generate_response(query: str, local_agreement: dict, common_agreement: dict, agreement_scope: str, api_key: str) -> str:
     """Generate response using Claude with complete agreement context"""
     
     # Build context based on selected scope
@@ -109,7 +107,7 @@ def generate_response(query, local_agreement, common_agreement, agreement_scope,
         context = format_agreement_for_context(local_agreement, "Coast Mountain College Local Agreement")
         context += "\n\n" + format_agreement_for_context(common_agreement, "BCGEU Common Agreement")
     
-    system_prompt = """You are an experienced HR professional and collective agreement specialist for Coast Mountain College with 15+ years of expertise in labor relations and agreement interpretation. Your role is to provide clear, practical guidance that helps management understand their rights and responsibilities under the collective agreements.
+    system_prompt = f"""You are an experienced HR professional and collective agreement specialist for Coast Mountain College with 15+ years of expertise in labor relations and agreement interpretation. Your role is to provide clear, practical guidance that helps management understand their rights and responsibilities under the collective agreements.
 
 APPROACH AND TONE:
 - Provide clear, confident guidance while remaining professional and balanced
@@ -148,7 +146,7 @@ RESPONSE STRUCTURE:
 Remember: You are management's trusted advisor. Your goal is to help them operate effectively within the collective agreement framework while protecting institutional interests and maintaining positive labor relations.
 
 COLLECTIVE AGREEMENT CONTENT:
-""" + context + """
+{context}
 
 IMPORTANT: You have access to the complete collective agreement content above. If you cannot find specific information about a topic (like vacation), please:
 1. Carefully review ALL articles and sections provided
@@ -232,8 +230,7 @@ def main():
             st.markdown(message["content"])
     
     # Chat input
-    prompt = st.chat_input("Ask about collective agreement provisions...")
-    if prompt:
+    if prompt := st.chat_input("Ask about collective agreement provisions..."):
         # Load agreements when user submits question
         with st.spinner("Loading agreements..."):
             local_agreement, common_agreement = load_builtin_agreements()
