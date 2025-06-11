@@ -15,32 +15,72 @@ def test_json_loading():
     """Test JSON loading to diagnose the issue"""
     st.write("🔧 JSON LOADING DIAGNOSTICS:")
     try:
+        # Check file existence and size
+        import os
+        if os.path.exists('complete_local.json'):
+            file_size = os.path.getsize('complete_local.json')
+            st.write(f"- File exists, size: {file_size:,} bytes")
+        else:
+            st.error("❌ complete_local.json file not found!")
+            return
+            
         with open('complete_local.json', 'r', encoding='utf-8') as f:
             content = f.read()
-            st.write(f"- File size: {len(content):,} characters")
-            st.write(f"- Last 200 characters: {content[-200:]}")
+            st.write(f"- File content length: {len(content):,} characters")
             
+            # Check for key sections in raw text
+            if '"appendices"' in content:
+                st.write("✅ Found 'appendices' key in raw file content")
+                appendices_pos = content.find('"appendices"')
+                st.write(f"- Appendices section starts at character {appendices_pos}")
+                
+                # Show content around appendices
+                start = max(0, appendices_pos - 50)
+                end = min(len(content), appendices_pos + 300)
+                st.write("Raw content around appendices:")
+                st.code(content[start:end])
+            else:
+                st.write("❌ No 'appendices' key found in raw file content")
+            
+            if '"appendix_3"' in content:
+                st.write("✅ Found 'appendix_3' key in raw file content")
+                appendix_3_pos = content.find('"appendix_3"')
+                st.write(f"- Appendix 3 section starts at character {appendix_3_pos}")
+            else:
+                st.write("❌ No 'appendix_3' key found in raw file content")
+            
+            st.write(f"- Last 300 characters of file:")
+            st.code(content[-300:])
+            
+            # Now try to parse JSON
+            st.write("🔍 Attempting JSON parse...")
             data = json.loads(content)
+            st.write(f"✅ JSON parsed successfully!")
             st.write(f"- Top level keys after JSON parse: {list(data.keys())}")
+            
             if 'appendices' in data:
-                st.write(f"- Appendices keys: {list(data['appendices'].keys())}")
+                st.write(f"✅ Appendices found in parsed data: {list(data['appendices'].keys())}")
                 if 'appendix_3' in data['appendices']:
                     st.write("✅ Appendix 3 found in parsed JSON!")
                     st.write(f"- Appendix 3 keys: {list(data['appendices']['appendix_3'].keys())}")
+                    st.write(f"- Appendix 3 title: {data['appendices']['appendix_3'].get('title', 'No title')}")
                 else:
                     st.write("❌ Appendix 3 NOT found in parsed JSON")
             else:
-                st.write("❌ No appendices section in parsed JSON")
+                st.write("❌ No appendices section in parsed JSON - THIS IS THE PROBLEM!")
                 
             # Check if appendices content is elsewhere
             full_text = json.dumps(data).lower()
             if "program coordination" in full_text:
-                st.write("✅ 'program coordination' text found somewhere in JSON")
+                st.write("✅ 'program coordination' text found somewhere in parsed JSON")
             if "appendix 3" in full_text:
-                st.write("✅ 'appendix 3' text found somewhere in JSON")
+                st.write("✅ 'appendix 3' text found somewhere in parsed JSON")
                 
+    except json.JSONDecodeError as e:
+        st.error(f"❌ JSON parsing error: {e}")
+        st.write(f"Error at line {e.lineno}, column {e.colno}")
     except Exception as e:
-        st.error(f"JSON loading error: {e}")
+        st.error(f"❌ File reading error: {e}")
 
 def load_builtin_agreements() -> tuple:
     """Load the built-in agreements from JSON files"""
