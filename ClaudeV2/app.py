@@ -20,6 +20,20 @@ def load_builtin_agreements() -> tuple:
         with open('complete_common.json', 'r', encoding='utf-8') as f:
             common_agreement = json.load(f)
         
+        # DEBUG: Print what we loaded
+        st.write("🔍 DEBUG: Local Agreement Structure:")
+        st.write(f"- Top-level keys: {list(local_agreement.keys())}")
+        if 'appendices' in local_agreement:
+            st.write(f"- Appendices found: {list(local_agreement['appendices'].keys())}")
+            if 'appendix_3' in local_agreement['appendices']:
+                st.write("✅ Appendix 3 found in local agreement!")
+                st.write(f"- Appendix 3 title: {local_agreement['appendices']['appendix_3'].get('title', 'No title')}")
+                st.write(f"- Appendix 3 keys: {list(local_agreement['appendices']['appendix_3'].keys())}")
+            else:
+                st.write("❌ Appendix 3 NOT found in local agreement")
+        else:
+            st.write("❌ No appendices section found in local agreement")
+        
         return local_agreement, common_agreement
         
     except FileNotFoundError as e:
@@ -79,13 +93,19 @@ def format_agreement_for_context(agreement: dict, agreement_name: str) -> str:
                 
                 context += "\n" + "="*50 + "\n\n"
     
-    # Add appendices
+    # Add appendices with debug info
     if 'appendices' in agreement:
         context += "APPENDICES:\n\n"
+        st.write(f"🔍 DEBUG: Processing appendices for {agreement_name}")
+        st.write(f"- Found appendices: {list(agreement['appendices'].keys())}")
+        
         for appendix_key, appendix_data in agreement['appendices'].items():
-            # ONLY CHANGE: Convert appendix_3 to "APPENDIX 3" for better readability
+            st.write(f"- Processing appendix: {appendix_key}")
+            
+            # Convert appendix_3 to "APPENDIX 3" for better readability
             display_key = appendix_key.replace('_', ' ').upper()
             context += f"{display_key}:\n"
+            
             if isinstance(appendix_data, dict):
                 if 'title' in appendix_data:
                     context += f"Title: {appendix_data['title']}\n\n"
@@ -93,6 +113,28 @@ def format_agreement_for_context(agreement: dict, agreement_name: str) -> str:
             else:
                 context += str(appendix_data)
             context += "\n\n" + "="*50 + "\n\n"
+            
+            # Special debug for Appendix 3
+            if appendix_key == 'appendix_3':
+                st.write("✅ Successfully processed Appendix 3!")
+                st.write(f"- Display key: {display_key}")
+                st.write(f"- Data type: {type(appendix_data)}")
+                if isinstance(appendix_data, dict):
+                    st.write(f"- Content keys: {list(appendix_data.keys())}")
+    else:
+        st.write(f"❌ DEBUG: No appendices found in {agreement_name}")
+    
+    # DEBUG: Show context length and search for "appendix 3" or "program coordination"
+    st.write(f"🔍 DEBUG: Context length for {agreement_name}: {len(context)} characters")
+    if "appendix 3" in context.lower():
+        st.write("✅ 'appendix 3' found in context (case insensitive)")
+    else:
+        st.write("❌ 'appendix 3' NOT found in context")
+    
+    if "program coordination" in context.lower():
+        st.write("✅ 'program coordination' found in context")
+    else:
+        st.write("❌ 'program coordination' NOT found in context")
     
     return context
 
@@ -102,12 +144,23 @@ def generate_response(query: str, local_agreement: dict, common_agreement: dict,
     # Build context based on selected scope
     context = ""
     if agreement_scope == "Local Agreement Only":
+        st.write("🔍 DEBUG: Building context from Local Agreement only")
         context = format_agreement_for_context(local_agreement, "Coast Mountain College Local Agreement")
     elif agreement_scope == "Common Agreement Only":
+        st.write("🔍 DEBUG: Building context from Common Agreement only")
         context = format_agreement_for_context(common_agreement, "BCGEU Common Agreement")
     else:  # Both agreements
+        st.write("🔍 DEBUG: Building context from both agreements")
         context = format_agreement_for_context(local_agreement, "Coast Mountain College Local Agreement")
         context += "\n\n" + format_agreement_for_context(common_agreement, "BCGEU Common Agreement")
+    
+    # Final context debug
+    st.write(f"🔍 DEBUG: Final context length: {len(context)} characters")
+    st.write(f"🔍 DEBUG: Query contains 'appendix 3': {'appendix 3' in query.lower()}")
+    
+    # Show a sample of the context
+    st.write("🔍 DEBUG: Context sample (first 500 chars):")
+    st.code(context[:500] + "..." if len(context) > 500 else context)
     
     system_prompt = f"""You are an experienced HR professional and collective agreement specialist for Coast Mountain College with 15+ years of expertise in labor relations and agreement interpretation. Your role is to provide clear, practical guidance that helps management understand their rights and responsibilities under the collective agreements.
 
