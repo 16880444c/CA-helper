@@ -104,6 +104,22 @@ def generate_response(query: str, local_agreement: dict, common_agreement: dict,
         context = format_agreement_for_context(local_agreement, "Coast Mountain College Local Agreement")
         context += "\n\n" + format_agreement_for_context(common_agreement, "BCGEU Common Agreement")
     
+    # Debug: Show context length and first few articles
+    st.write(f"**Debug Info:** Context length: {len(context)} characters")
+    if local_agreement and 'articles' in local_agreement:
+        st.write(f"**Local Agreement Articles:** {list(local_agreement['articles'].keys())}")
+    if common_agreement and 'articles' in common_agreement:
+        st.write(f"**Common Agreement Articles:** {list(common_agreement['articles'].keys())}")
+    
+    # Debug: Show a sample of the context content
+    st.write("**Context Preview (first 1000 chars):**")
+    st.text(context[:1000] + "..." if len(context) > 1000 else context)
+    
+    # Check if vacation-related content exists
+    vacation_keywords = ["vacation", "annual leave", "leave of absence", "holiday"]
+    found_keywords = [kw for kw in vacation_keywords if kw.lower() in context.lower()]
+    st.write(f"**Vacation-related keywords found:** {found_keywords}")
+    
     system_prompt = f"""You are an experienced HR professional and collective agreement specialist for Coast Mountain College with 15+ years of expertise in labor relations and agreement interpretation. Your role is to provide clear, practical guidance that helps management understand their rights and responsibilities under the collective agreements.
 
 APPROACH AND TONE:
