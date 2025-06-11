@@ -222,6 +222,15 @@ def main():
         with st.spinner("Loading agreements..."):
             local_agreement, common_agreement = load_builtin_agreements()
             
+            # Additional debugging right after loading
+            if local_agreement and 'articles' in local_agreement:
+                st.write(f"**After Loading - Local Articles Count:** {len(local_agreement['articles'])}")
+                st.write(f"**Article Keys:** {sorted(list(local_agreement['articles'].keys()))}")
+                if '17' in local_agreement['articles']:
+                    st.write("**✓ Article 17 IS in the loaded data**")
+                else:
+                    st.write("**❌ Article 17 is NOT in the loaded data**")
+            
             if not local_agreement or not common_agreement:
                 st.error("❌ Could not load agreement files. Please check that the JSON files are available.")
                 st.stop()
