@@ -71,19 +71,41 @@ def load_builtin_agreements() -> tuple:
                 st.write("❌ Appendix 3 NOT found in local agreement")
         else:
             st.write("❌ No appendices section found in local agreement")
-            # Check if it's nested somewhere else
-            st.write("🔍 Searching for appendices in other locations...")
-            def search_for_appendices(obj, path=""):
-                if isinstance(obj, dict):
-                    for key, value in obj.items():
-                        if 'appendix' in key.lower():
-                            st.write(f"Found appendix-related key at {path}.{key}")
-                        search_for_appendices(value, f"{path}.{key}")
-                elif isinstance(obj, list):
-                    for i, item in enumerate(obj):
-                        search_for_appendices(item, f"{path}[{i}]")
             
-            search_for_appendices(local_agreement)
+            # EXTENSIVE SEARCH for where appendix content might be hiding
+            st.write("🔍 SEARCHING ENTIRE AGREEMENT for appendix content...")
+            full_text = json.dumps(local_agreement, indent=2)
+            
+            # Find all occurrences of "appendix"
+            appendix_positions = []
+            search_text = full_text.lower()
+            start = 0
+            while True:
+                pos = search_text.find("appendix", start)
+                if pos == -1:
+                    break
+                appendix_positions.append(pos)
+                start = pos + 1
+            
+            st.write(f"Found 'appendix' at {len(appendix_positions)} positions: {appendix_positions[:10]}...")
+            
+            # Show context around each appendix mention
+            for i, pos in enumerate(appendix_positions[:5]):  # Show first 5
+                start = max(0, pos - 100)
+                end = min(len(full_text), pos + 200)
+                context_snippet = full_text[start:end]
+                st.write(f"**Appendix occurrence #{i+1} at position {pos}:**")
+                st.code(context_snippet)
+                
+            # Search for "program coordination" specifically
+            prog_coord_pos = search_text.find("program coordination")
+            if prog_coord_pos >= 0:
+                st.write(f"Found 'program coordination' at position {prog_coord_pos}")
+                start = max(0, prog_coord_pos - 150)
+                end = min(len(full_text), prog_coord_pos + 300)
+                context_snippet = full_text[start:end]
+                st.write("**Program Coordination context:**")
+                st.code(context_snippet)
         
         return local_agreement, common_agreement
         
