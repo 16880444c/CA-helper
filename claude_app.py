@@ -104,12 +104,26 @@ def generate_response(query: str, local_agreement: dict, common_agreement: dict,
         context = format_agreement_for_context(local_agreement, "Coast Mountain College Local Agreement")
         context += "\n\n" + format_agreement_for_context(common_agreement, "BCGEU Common Agreement")
     
-    # Debug: Show context length and first few articles
-    st.write(f"**Debug Info:** Context length: {len(context)} characters")
-    if local_agreement and 'articles' in local_agreement:
-        st.write(f"**Local Agreement Articles:** {list(local_agreement['articles'].keys())}")
-    if common_agreement and 'articles' in common_agreement:
-        st.write(f"**Common Agreement Articles:** {list(common_agreement['articles'].keys())}")
+    # Debug: Show what's being loaded based on scope
+    st.write(f"**Debug Info:** Selected Scope: {agreement_scope}")
+    st.write(f"**Context length:** {len(context)} characters")
+    
+    # Show articles based on selected scope
+    if agreement_scope == "Local Agreement Only":
+        if local_agreement and 'articles' in local_agreement:
+            st.write(f"**Local Agreement Articles (Selected):** {list(local_agreement['articles'].keys())}")
+        else:
+            st.write("**ERROR:** Local agreement not loaded or has no articles")
+    elif agreement_scope == "Common Agreement Only":
+        if common_agreement and 'articles' in common_agreement:
+            st.write(f"**Common Agreement Articles (Selected):** {list(common_agreement['articles'].keys())}")
+        else:
+            st.write("**ERROR:** Common agreement not loaded or has no articles")
+    else:  # Both agreements
+        if local_agreement and 'articles' in local_agreement:
+            st.write(f"**Local Agreement Articles:** {list(local_agreement['articles'].keys())}")
+        if common_agreement and 'articles' in common_agreement:
+            st.write(f"**Common Agreement Articles:** {list(common_agreement['articles'].keys())}")
     
     # Debug: Show a sample of the context content
     st.write("**Context Preview (first 1000 chars):**")
@@ -119,6 +133,15 @@ def generate_response(query: str, local_agreement: dict, common_agreement: dict,
     vacation_keywords = ["vacation", "annual leave", "leave of absence", "holiday"]
     found_keywords = [kw for kw in vacation_keywords if kw.lower() in context.lower()]
     st.write(f"**Vacation-related keywords found:** {found_keywords}")
+    
+    # Additional debug: Check if vacation content is in a specific agreement
+    if "vacation" in context.lower():
+        st.write("**Vacation content found in context**")
+        # Find which sections contain vacation
+        vacation_lines = [line for line in context.split('\n') if 'vacation' in line.lower()]
+        st.write(f"**Vacation mentions (first 5):** {vacation_lines[:5]}")
+    else:
+        st.write("**No vacation content found in context - this might be why Claude can't answer**")
     
     system_prompt = f"""You are an experienced HR professional and collective agreement specialist for Coast Mountain College with 15+ years of expertise in labor relations and agreement interpretation. Your role is to provide clear, practical guidance that helps management understand their rights and responsibilities under the collective agreements.
 
@@ -159,7 +182,14 @@ RESPONSE STRUCTURE:
 Remember: You are management's trusted advisor. Your goal is to help them operate effectively within the collective agreement framework while protecting institutional interests and maintaining positive labor relations.
 
 COLLECTIVE AGREEMENT CONTENT:
-{context}"""
+{context}
+
+IMPORTANT: You have access to the complete collective agreement content above. If you cannot find specific information about a topic (like vacation), please:
+1. Carefully review ALL articles and sections provided
+2. Check definitions, appendices, and subsections 
+3. Look for related terms (e.g., "annual leave" instead of "vacation", "time off", etc.)
+4. If the information truly isn't in the provided content, say so clearly
+5. Never claim you only have "excerpts" - you have the complete agreement sections selected by the user"""
 
     user_message = f"""Based on the complete collective agreement provisions provided in the system prompt, provide strong management-focused guidance for this question:
 
