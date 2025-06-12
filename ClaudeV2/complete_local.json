@@ -2173,6 +2173,7 @@
           ]
         }
       }
+    }
   },
   "appendices": {
     "appendix_1": {
@@ -2498,5 +2499,5 @@
   "liability_calculation": "If Article 23.8 is triggered, the liability arising from the amount of savings from the legislative changes to the MSP savings is based on 2017",
   "dispute_resolution": "If the parties cannot agree, any party may refer the matter to arbitration"
 }
-}
+
 }
