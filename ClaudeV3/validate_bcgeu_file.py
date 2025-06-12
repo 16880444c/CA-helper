@@ -2,199 +2,209 @@ import streamlit as st
 import os
 import re
 
-st.title("🔧 Fix Syntax Error in bcgeu_local_data.py")
+st.title("🔧 Find and Fix bcgeu_local_data.py Syntax Error")
 
-# File path
-file_path = "bcgeu_local_data.py"
+# Search for the file in multiple locations
+possible_paths = [
+    "bcgeu_local_data.py",
+    "./bcgeu_local_data.py", 
+    "../bcgeu_local_data.py",
+    "ClaudeV3/bcgeu_local_data.py",
+    "../ClaudeV3/bcgeu_local_data.py"
+]
 
-if os.path.exists(file_path):
-    st.success(f"✅ Found file: {file_path}")
-    
-    # Read the file
+# Also search in current directory and parent directories
+current_dir = os.getcwd()
+st.write(f"Current directory: {current_dir}")
+
+# List all files in current directory
+st.subheader("📁 Files in Current Directory:")
+try:
+    files = os.listdir(".")
+    for file in sorted(files):
+        if file.endswith('.py'):
+            st.write(f"🐍 **{file}**")
+        else:
+            st.write(f"📄 {file}")
+except Exception as e:
+    st.error(f"Error listing files: {e}")
+
+# Check if ClaudeV3 directory exists
+if os.path.exists("ClaudeV3"):
+    st.subheader("📁 Files in ClaudeV3 Directory:")
     try:
+        files = os.listdir("ClaudeV3")
+        for file in sorted(files):
+            if file.endswith('.py'):
+                st.write(f"🐍 **ClaudeV3/{file}**")
+                possible_paths.append(f"ClaudeV3/{file}")
+    except Exception as e:
+        st.error(f"Error listing ClaudeV3 files: {e}")
+
+# Find the file
+file_path = None
+st.subheader("🔍 Searching for bcgeu_local_data.py...")
+
+for path in possible_paths:
+    if os.path.exists(path):
+        st.success(f"✅ Found file at: {path}")
+        file_path = path
+        break
+    else:
+        st.write(f"❌ Not found at: {path}")
+
+# Manual file selection
+st.subheader("📝 Manual File Path")
+manual_path = st.text_input("Enter the full path to your bcgeu_local_data.py file:", 
+                           placeholder="e.g., ClaudeV3/bcgeu_local_data.py")
+
+if manual_path and os.path.exists(manual_path):
+    file_path = manual_path
+    st.success(f"✅ Using manual path: {file_path}")
+elif manual_path:
+    st.error(f"❌ File not found at manual path: {manual_path}")
+
+# Process the file if found
+if file_path:
+    st.success(f"🎯 Processing file: {file_path}")
+    
+    try:
+        # Get file info
+        file_size = os.path.getsize(file_path)
+        st.write(f"📊 File size: {file_size:,} bytes")
+        
+        # Read the file
         with open(file_path, 'r', encoding='utf-8') as f:
             lines = f.readlines()
         
-        st.write(f"📄 File has {len(lines)} lines")
+        st.write(f"📄 File has {len(lines):,} lines")
         
-        # Show the problematic area around line 2385
-        error_line = 2385
-        start_line = max(1, error_line - 10)
-        end_line = min(len(lines), error_line + 10)
-        
-        st.subheader(f"🔍 Lines around {error_line} (where syntax error occurs):")
-        
-        # Display the problematic area
-        problem_lines = []
-        for i in range(start_line - 1, end_line):
-            line_num = i + 1
-            line_content = lines[i].rstrip()
+        # Try to parse the file to find the exact error
+        st.subheader("🔍 Syntax Check")
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
             
-            # Count quotes in this line
-            single_quotes = line_content.count("'")
-            double_quotes = line_content.count('"')
+            import ast
+            ast.parse(content)
+            st.success("✅ File has valid Python syntax! No fix needed.")
             
-            # Check for unmatched quotes
-            quote_issue = ""
-            if single_quotes % 2 != 0:
-                quote_issue += " ⚠️ UNMATCHED SINGLE QUOTES"
-            if double_quotes % 2 != 0:
-                quote_issue += " ⚠️ UNMATCHED DOUBLE QUOTES"
+        except SyntaxError as e:
+            st.error(f"❌ Syntax Error Found!")
+            st.write(f"**Line:** {e.lineno}")
+            st.write(f"**Error:** {e.msg}")
+            if e.text:
+                st.code(f"Problematic line: {e.text.strip()}")
             
-            if line_num == error_line:
-                st.error(f"❌ {line_num:4d}: {line_content}{quote_issue}")
-                problem_lines.append((line_num, line_content, quote_issue))
-            else:
-                if quote_issue:
-                    st.warning(f"⚠️  {line_num:4d}: {line_content}{quote_issue}")
-                    problem_lines.append((line_num, line_content, quote_issue))
+            # Show context around the error
+            error_line = e.lineno
+            start_line = max(1, error_line - 5)
+            end_line = min(len(lines), error_line + 5)
+            
+            st.subheader(f"📋 Context around line {error_line}:")
+            
+            for i in range(start_line - 1, end_line):
+                line_num = i + 1
+                line_content = lines[i].rstrip()
+                
+                if line_num == error_line:
+                    st.error(f"❌ {line_num:4d}: {line_content}")
                 else:
                     st.text(f"   {line_num:4d}: {line_content}")
-        
-        # Analyze the specific problems
-        st.subheader("🔧 Automatic Fixes")
-        
-        if st.button("🛠️ Attempt Automatic Fix"):
-            fixed_lines = lines.copy()
-            fixes_made = []
             
-            # Common fixes for unterminated string literals
-            for i in range(max(0, error_line - 20), min(len(lines), error_line + 20)):
-                line = fixed_lines[i]
-                original_line = line
-                line_num = i + 1
+            # Analyze the specific error
+            if "unterminated string literal" in e.msg.lower():
+                st.subheader("🛠️ Fixing Unterminated String Literal")
                 
-                # Fix 1: Replace smart quotes with regular quotes
-                line = line.replace('"', '"').replace('"', '"')
-                line = line.replace(''', "'").replace(''', "'")
+                error_line_content = lines[error_line - 1] if error_line <= len(lines) else ""
                 
-                # Fix 2: Escape apostrophes in strings
-                # Find strings and escape apostrophes within them
-                def fix_apostrophes_in_strings(text):
-                    # Pattern to find strings (both single and double quoted)
-                    pattern = r'("(?:[^"\\]|\\.)*")|\'([^\'\\\\]|\\\\.)*\''
+                st.write("**Common causes and fixes:**")
+                
+                # Check for unmatched quotes
+                single_quotes = error_line_content.count("'")
+                double_quotes = error_line_content.count('"')
+                
+                if single_quotes % 2 != 0:
+                    st.warning("⚠️ Unmatched single quotes detected")
+                    st.write("**Fix:** Escape apostrophes with backslash")
+                    st.code("Before: \"Coast Mountain College's programs\"\nAfter:  \"Coast Mountain College\\'s programs\"")
+                
+                if double_quotes % 2 != 0:
+                    st.warning("⚠️ Unmatched double quotes detected")
+                
+                # Show potential fixes
+                if st.button("🔧 Apply Automatic Fix"):
+                    fixed_lines = lines.copy()
                     
-                    def replace_func(match):
-                        full_match = match.group(0)
-                        if full_match.startswith('"'):
-                            # Double quoted string - escape any unescaped apostrophes
-                            return full_match.replace("\\'", "TEMP_ESCAPED").replace("'", "\\'").replace("TEMP_ESCAPED", "\\'")
-                        else:
-                            # Single quoted string - escape any unescaped apostrophes
-                            inner = full_match[1:-1]  # Remove quotes
-                            inner = inner.replace("\\'", "TEMP_ESCAPED").replace("'", "\\'").replace("TEMP_ESCAPED", "\\'")
-                            return f"'{inner}'"
-                    
-                    return re.sub(pattern, replace_func, text)
-                
-                # Apply the fix
-                new_line = fix_apostrophes_in_strings(line)
-                
-                # Fix 3: Handle common problematic patterns
-                # Fix unmatched quotes at end of lines
-                if new_line.rstrip().endswith('"') and new_line.count('"') % 2 != 0:
-                    # Add missing quote at beginning of content
-                    content_start = new_line.find(':') + 1
-                    if content_start > 0:
-                        before_content = new_line[:content_start].strip()
-                        after_content = new_line[content_start:].strip()
-                        if not after_content.startswith('"'):
-                            new_line = before_content + ' "' + after_content
-                
-                # Fix 4: Handle lines with odd number of quotes
-                if "'" in new_line:
-                    single_quote_count = new_line.count("'")
-                    if single_quote_count % 2 != 0:
-                        # Try to fix by escaping apostrophes in likely text content
-                        if '": "' in new_line or "': '" in new_line:
-                            # This looks like a key-value pair
-                            parts = new_line.split('": "' if '": "' in new_line else "': '", 1)
-                            if len(parts) == 2:
-                                key_part = parts[0]
-                                value_part = parts[1]
-                                # Escape apostrophes in the value part
-                                value_part = value_part.replace("'", "\\'")
-                                separator = '": "' if '": "' in new_line else "': '"
-                                new_line = key_part + separator + value_part
-                
-                if new_line != original_line:
-                    fixed_lines[i] = new_line
-                    fixes_made.append(f"Line {line_num}: Fixed quote issues")
-            
-            # Show what fixes were made
-            if fixes_made:
-                st.success("🎉 Fixes applied:")
-                for fix in fixes_made:
-                    st.write(f"  ✅ {fix}")
-                
-                # Save the fixed file
-                try:
-                    # Backup original file
-                    backup_path = file_path.replace('.py', '_backup.py')
-                    with open(backup_path, 'w', encoding='utf-8') as f:
-                        f.writelines(lines)
-                    st.info(f"💾 Original file backed up as: {backup_path}")
-                    
-                    # Save fixed file
-                    with open(file_path, 'w', encoding='utf-8') as f:
-                        f.writelines(fixed_lines)
-                    st.success(f"✅ Fixed file saved as: {file_path}")
-                    
-                    # Test the fixed file
-                    st.write("🧪 Testing the fixed file...")
-                    try:
-                        import ast
-                        with open(file_path, 'r', encoding='utf-8') as f:
-                            fixed_content = f.read()
-                        ast.parse(fixed_content)
-                        st.success("🎉 SUCCESS! The file now has valid Python syntax!")
-                        st.balloons()
-                    except SyntaxError as e:
-                        st.error(f"❌ Still has syntax error at line {e.lineno}: {e.msg}")
-                        st.write("You may need to manually fix remaining issues.")
-                    except Exception as e:
-                        st.error(f"❌ Other error: {e}")
+                    # Focus on the error line and surrounding lines
+                    for i in range(max(0, error_line - 3), min(len(lines), error_line + 3)):
+                        line = fixed_lines[i]
+                        original_line = line
                         
-                except Exception as e:
-                    st.error(f"❌ Error saving fixed file: {e}")
-            else:
-                st.warning("⚠️ No automatic fixes could be applied. Manual editing may be required.")
-        
-        # Manual fix suggestions
-        st.subheader("🛠️ Manual Fix Instructions")
-        st.write("If automatic fix doesn't work, here's how to manually fix the most common issues:")
-        
-        st.write("**1. Unmatched Quotes:**")
-        st.code('''
-# Wrong (causes syntax error):
-"content": "Coast Mountain College's programs"
+                        # Fix smart quotes
+                        line = line.replace('"', '"').replace('"', '"')
+                        line = line.replace(''', "'").replace(''', "'")
+                        
+                        # Fix unescaped apostrophes in strings
+                        # Simple pattern: find content between quotes and escape apostrophes
+                        def fix_apostrophes(match):
+                            quote_char = match.group(0)[0]  # First character (quote type)
+                            content = match.group(1)
+                            
+                            if quote_char == '"':
+                                # In double quotes, escape any unescaped single quotes
+                                content = re.sub(r"(?<!\\)'", "\\'", content)
+                            else:
+                                # In single quotes, escape any unescaped single quotes
+                                content = re.sub(r"(?<!\\)'", "\\'", content)
+                            
+                            return f"{quote_char}{content}{quote_char}"
+                        
+                        # Apply fixes to quoted strings
+                        line = re.sub(r'"([^"]*)"', fix_apostrophes, line)
+                        line = re.sub(r"'([^']*)'", fix_apostrophes, line)
+                        
+                        if line != original_line:
+                            fixed_lines[i] = line
+                            st.write(f"✅ Fixed line {i+1}")
+                    
+                    # Save the fixed file
+                    try:
+                        # Create backup
+                        backup_path = file_path.replace('.py', '_backup.py')
+                        with open(backup_path, 'w', encoding='utf-8') as f:
+                            f.writelines(lines)
+                        st.info(f"💾 Backup created: {backup_path}")
+                        
+                        # Save fixed version
+                        with open(file_path, 'w', encoding='utf-8') as f:
+                            f.writelines(fixed_lines)
+                        
+                        st.success("🎉 File has been fixed!")
+                        
+                        # Test the fix
+                        try:
+                            with open(file_path, 'r', encoding='utf-8') as f:
+                                test_content = f.read()
+                            ast.parse(test_content)
+                            st.success("✅ SUCCESS! File now has valid syntax!")
+                            st.balloons()
+                        except SyntaxError as test_error:
+                            st.error(f"❌ Still has syntax error: {test_error.msg} at line {test_error.lineno}")
+                        
+                    except Exception as save_error:
+                        st.error(f"❌ Error saving file: {save_error}")
+            
+        except Exception as other_error:
+            st.error(f"❌ Error checking syntax: {other_error}")
+    
+    except Exception as read_error:
+        st.error(f"❌ Error reading file: {read_error}")
 
-# Right (escaped apostrophe):
-"content": "Coast Mountain College\\'s programs"
-        ''')
-        
-        st.write("**2. Multi-line Strings:**")
-        st.code('''
-# Wrong (line break in string):
-"content": "This is a very long
-line that breaks"
-
-# Right (escaped or triple quotes):
-"content": "This is a very long\\nline that breaks"
-        ''')
-        
-        st.write("**3. Smart Quotes:**")
-        st.code('''
-# Wrong (smart quotes):
-"content": "Coast Mountain College's programs"
-
-# Right (regular quotes):
-"content": "Coast Mountain College's programs"
-        ''')
-        
-    except Exception as e:
-        st.error(f"❌ Error reading file: {e}")
-        
 else:
-    st.error(f"❌ File not found: {file_path}")
-    st.write("Make sure the file exists in the same directory as this script.")
+    st.error("❌ Could not find bcgeu_local_data.py file")
+    st.write("**Try these steps:**")
+    st.write("1. Make sure the file exists")
+    st.write("2. Check if it's in a subdirectory")
+    st.write("3. Enter the correct path in the manual input above")
+    st.write("4. Or copy the file to the same directory as this script")
