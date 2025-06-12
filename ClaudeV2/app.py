@@ -1,106 +1,142 @@
-import streamlit as st
 import json
-import json_validator  # Import your validator functions
 
-# Your existing Streamlit app code here...
-
-def load_agreement_data():
-    """Load the collective agreement data from JSON file"""
+def validate_json_file(filename):
+    """
+    Validates a JSON file and shows exactly where any syntax errors occur
+    """
     try:
-        with open('complete_local.json', 'r', encoding='utf-8') as f:
-            data = json.loads(f.read())
-        return data
-    except Exception as e:
-        st.error(f"Error loading agreement data: {e}")
-        return None
-
-def main():
-    st.title("Coast Mountain College Collective Agreement Assistant")
-    
-    # Add a sidebar option for JSON validation
-    st.sidebar.title("Debug Tools")
-    if st.sidebar.button("🔍 Validate JSON File"):
-        st.sidebar.write("Running JSON validation...")
+        with open(filename, 'r', encoding='utf-8') as f:
+            content = f.read()
         
-        # Capture the output from your validator
-        import io
-        import sys
-        from contextlib import redirect_stdout
+        print(f"File size: {len(content)} characters")
+        print(f"File lines: {len(content.split('\n'))}")
         
-        # Redirect stdout to capture print statements
-        output_buffer = io.StringIO()
+        # Try to parse the JSON
+        data = json.loads(content)
         
-        with redirect_stdout(output_buffer):
-            data = json_validator.validate_json_file("complete_local.json")
-            json_validator.find_appendices_manually("complete_local.json")
+        print("✅ JSON is valid!")
+        print(f"Top-level keys found: {list(data.keys())}")
         
-        # Display the validation results
-        validation_output = output_buffer.getvalue()
-        st.sidebar.code(validation_output, language="text")
-        
-        if data:
-            st.sidebar.success("✅ JSON is valid!")
-            if 'appendices' in data:
-                st.sidebar.success("✅ Appendices found!")
-            else:
-                st.sidebar.error("❌ Appendices missing from parsed data")
-        else:
-            st.sidebar.error("❌ JSON validation failed")
-    
-    # Your existing app logic
-    data = load_agreement_data()
-    
-    if data is None:
-        st.error("Could not load agreement data. Please check the JSON file.")
-        st.info("Use the 'Validate JSON File' button in the sidebar to debug.")
-        return
-    
-    # Show what sections are available
-    st.sidebar.write("**Available sections:**")
-    for key in data.keys():
-        st.sidebar.write(f"- {key}")
-    
-    # Test appendices access
-    if st.sidebar.button("🧪 Test Appendix 3 Access"):
-        st.sidebar.write("Testing Appendix 3 access...")
-        
+        # Check if appendices exist
         if 'appendices' in data:
-            st.sidebar.success("✅ Found 'appendices' section")
+            print("✅ Appendices section found!")
+            appendices_keys = list(data['appendices'].keys())
+            print(f"Appendices found: {appendices_keys}")
             
             if 'appendix_3' in data['appendices']:
-                st.sidebar.success("✅ Found 'appendix_3'!")
-                st.sidebar.json(data['appendices']['appendix_3'])
+                print("✅ Appendix 3 found!")
+                print(f"Appendix 3 content preview: {str(data['appendices']['appendix_3'])[:200]}...")
             else:
-                st.sidebar.error("❌ 'appendix_3' not found")
-                st.sidebar.write("Available appendices:")
-                for key in data['appendices'].keys():
-                    st.sidebar.write(f"- {key}")
+                print("❌ Appendix 3 not found in appendices")
         else:
-            st.sidebar.error("❌ 'appendices' section not found")
-    
-    # Your main chat interface
-    user_input = st.text_input("Ask me about the collective agreement:")
-    
-    if user_input:
-        # Your existing chat logic here
-        if "appendix 3" in user_input.lower():
-            if data and 'appendices' in data and 'appendix_3' in data['appendices']:
-                appendix_3 = data['appendices']['appendix_3']
-                st.write("## Appendix 3: Program Coordinator")
-                st.write(f"**Purpose:** {appendix_3.get('purpose', 'Not specified')}")
+            print("❌ No appendices section found")
+            print("\n🔍 Investigating truncation issue...")
+            
+            # Check if this is a truncation issue during parsing
+            if 'articles' in data:
+                print(f"Articles found: {len(data['articles'])} articles")
+                last_article = max(data['articles'].keys(), key=int)
+                print(f"Last article parsed: Article {last_article}")
                 
-                if 'workload_reduction_tables' in appendix_3:
-                    st.write("### Workload Reduction Tables:")
-                    for table_name, table_data in appendix_3['workload_reduction_tables'].items():
-                        st.write(f"**{table_name.replace('_', ' ').title()}:**")
-                        for criteria, reduction in table_data.items():
-                            st.write(f"- {criteria.replace('_', ' ')}: {reduction}")
+                # Look at the end of articles section in raw text
+                articles_end_pos = content.find('  },\n  "appendices"')
+                if articles_end_pos == -1:
+                    articles_end_pos = content.find('},\n  "appendices"')
+                if articles_end_pos == -1:
+                    articles_end_pos = content.find('}\n  },\n  "appendices"')
                 
-            else:
-                st.error("Appendix 3 content is not available in the loaded data.")
-                st.info("This might be due to a JSON syntax error. Use the debug tools in the sidebar.")
-        else:
-            st.write("I can help you find information about the collective agreement. Try asking about 'Appendix 3' or other topics.")
+                if articles_end_pos > 0:
+                    print(f"Found articles-to-appendices transition at position: {articles_end_pos}")
+                    
+                    # Show more context around the transition
+                    start = max(0, articles_end_pos - 200)
+                    end = min(len(content), articles_end_pos + 300)
+                    context = content[start:end]
+                    print(f"\nExtended context around transition:")
+                    print("=" * 60)
+                    print(context)
+                    print("=" * 60)
+                else:
+                    print("Could not find articles-to-appendices transition")
+            
+        return data
+        
+    except json.JSONDecodeError as e:
+        print(f"❌ JSON Error at line {e.lineno}, column {e.colno}")
+        print(f"Error message: {e.msg}")
+        
+        # Show the problematic area
+        lines = content.split('\n')
+        start = max(0, e.lineno - 5)
+        end = min(len(lines), e.lineno + 5)
+        
+        print("\nProblematic area:")
+        print("-" * 50)
+        for i in range(start, end):
+            marker = " >>> " if i == e.lineno - 1 else "     "
+            print(f"{marker}{i+1:4d}: {lines[i]}")
+        print("-" * 50)
+        
+        # Try to find common JSON issues
+        print("\nCommon JSON issues to check:")
+        print("1. Missing commas between object properties")
+        print("2. Extra trailing commas")
+        print("3. Unescaped quotes in strings")
+        print("4. Mismatched brackets/braces")
+        print("5. Invalid escape sequences")
+        
+        return None
+        
+    except FileNotFoundError:
+        print(f"❌ File '{filename}' not found")
+        return None
+    except Exception as e:
+        print(f"❌ Unexpected error: {e}")
+        return None
+
+def find_appendices_manually(filename):
+    """
+    Manually search for appendices in the file to see if it exists as text
+    """
+    try:
+        with open(filename, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        # Search for appendices mentions
+        appendices_pos = content.find('"appendices"')
+        appendix_3_pos = content.find('"appendix_3"')
+        
+        print(f"\n📍 Manual search results:")
+        print(f"'appendices' found at position: {appendices_pos}")
+        print(f"'appendix_3' found at position: {appendix_3_pos}")
+        
+        if appendices_pos > 0:
+            # Show context around appendices
+            start = max(0, appendices_pos - 100)
+            end = min(len(content), appendices_pos + 200)
+            print(f"\nContext around 'appendices':")
+            print(f"...{content[start:end]}...")
+            
+    except Exception as e:
+        print(f"Error in manual search: {e}")
 
 if __name__ == "__main__":
-    main()
+    filename = "complete_local.json"
+    
+    print("🔍 Validating JSON file...")
+    print("=" * 60)
+    
+    # First try to validate the JSON
+    data = validate_json_file(filename)
+    
+    # Also do a manual search
+    find_appendices_manually(filename)
+    
+    print("\n" + "=" * 60)
+    print("Validation complete!")
+    
+    if data is None:
+        print("\n💡 Next steps:")
+        print("1. Fix the JSON syntax error shown above")
+        print("2. Re-run this validator")
+        print("3. Once valid, your Streamlit app should find Appendix 3")
