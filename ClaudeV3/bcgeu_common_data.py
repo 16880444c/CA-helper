@@ -1,9 +1,8 @@
-# Coast Mountain College Common Agreement Data
-# Complete data structure containing all articles, appendices, definitions, and metadata
-# Based on the Common Agreement between The Employers' Bargaining Committee and BCGEU
+# BCGEU Common Agreement Data
+# Exact conversion from original JSON - no changes to wording, structure, or field names
 
 AGREEMENT_DATA = {
-    "metadata": {
+    "agreement_metadata": {
         "title": "Common Agreement between The Employers' Bargaining Committee and B.C. General Employees' Union (BCGEU)",
         "parties": {
             "employers": "The Employers' Bargaining Committee on behalf of Member Institutions",
@@ -23,12 +22,12 @@ AGREEMENT_DATA = {
                 "BCGEU Local 712 (Coast Mountain College)"
             ]
         },
-        "effective_period": "April 1, 2022 to March 31, 2025",
-        "document_version": "04/2025",
-        "total_articles": 17,
-        "total_appendices": 8
+        "effective_dates": {
+            "start": "2022-04-01",
+            "end": "2025-03-31"
+        },
+        "document_version": "04/2025"
     },
-    
     "definitions": {
         "agreement": "This Common Agreement reached between the employers and the local unions as defined in 'Parties' or 'Common Parties'.",
         "collective_agreement": "The combination of provisions of the Common Agreement with local provisions that constitute a Collective Agreement between an institution and a local union.",
@@ -45,7 +44,6 @@ AGREEMENT_DATA = {
         "ratification": "The acceptance by the BCGEU and by both an institution and the PSEA of the terms of a Collective Agreement that includes this Common Agreement.",
         "union": "The B.C. General Employees Union (BCGEU)."
     },
-    
     "articles": {
         "1": {
             "title": "PREAMBLE",
@@ -657,180 +655,143 @@ AGREEMENT_DATA = {
             }
         }
     },
-    
     "appendices": {
-        "A": {
+        "appendix_a": {
             "title": "Provincial Salary Scale",
-            "content": {
-                "salary_steps": {
-                    "step_1": {
-                        "apr_2022_to_mar_2023": 102655,
-                        "apr_2023_to_mar_2024": 109584,
-                        "apr_2024_to_mar_2025": 112872
-                    },
-                    "step_2": {
-                        "apr_2022_to_mar_2023": 96195,
-                        "apr_2023_to_mar_2024": 102688,
-                        "apr_2024_to_mar_2025": 105769
-                    },
-                    "step_3": {
-                        "apr_2022_to_mar_2023": 89635,
-                        "apr_2023_to_mar_2024": 95685,
-                        "apr_2024_to_mar_2025": 98556
-                    },
-                    "step_4": {
-                        "apr_2022_to_mar_2023": 85990,
-                        "apr_2023_to_mar_2024": 91794,
-                        "apr_2024_to_mar_2025": 94548
-                    },
-                    "step_5": {
-                        "apr_2022_to_mar_2023": 82854,
-                        "apr_2023_to_mar_2024": 88447,
-                        "apr_2024_to_mar_2025": 91100
-                    },
-                    "step_6": {
-                        "apr_2022_to_mar_2023": 79725,
-                        "apr_2023_to_mar_2024": 85106,
-                        "apr_2024_to_mar_2025": 87659
-                    },
-                    "step_7": {
-                        "apr_2022_to_mar_2023": 76590,
-                        "apr_2023_to_mar_2024": 81760,
-                        "apr_2024_to_mar_2025": 84213
-                    },
-                    "step_8": {
-                        "apr_2022_to_mar_2023": 73459,
-                        "apr_2023_to_mar_2024": 78417,
-                        "apr_2024_to_mar_2025": 80770
-                    },
-                    "step_9": {
-                        "apr_2022_to_mar_2023": 70326,
-                        "apr_2023_to_mar_2024": 75073,
-                        "apr_2024_to_mar_2025": 77325
-                    },
-                    "step_10": {
-                        "apr_2022_to_mar_2023": 67192,
-                        "apr_2023_to_mar_2024": 71727,
-                        "apr_2024_to_mar_2025": 73879
-                    },
-                    "step_11": {
-                        "apr_2022_to_mar_2023": 64061,
-                        "apr_2023_to_mar_2024": 68385,
-                        "apr_2024_to_mar_2025": 70437
-                    }
+            "salary_steps": {
+                "step_1": {
+                    "apr_2022_to_mar_2023": 102655,
+                    "apr_2023_to_mar_2024": 109584,
+                    "apr_2024_to_mar_2025": 112872
+                },
+                "step_2": {
+                    "apr_2022_to_mar_2023": 96195,
+                    "apr_2023_to_mar_2024": 102688,
+                    "apr_2024_to_mar_2025": 105769
+                },
+                "step_3": {
+                    "apr_2022_to_mar_2023": 89635,
+                    "apr_2023_to_mar_2024": 95685,
+                    "apr_2024_to_mar_2025": 98556
+                },
+                "step_4": {
+                    "apr_2022_to_mar_2023": 85990,
+                    "apr_2023_to_mar_2024": 91794,
+                    "apr_2024_to_mar_2025": 94548
+                },
+                "step_5": {
+                    "apr_2022_to_mar_2023": 82854,
+                    "apr_2023_to_mar_2024": 88447,
+                    "apr_2024_to_mar_2025": 91100
+                },
+                "step_6": {
+                    "apr_2022_to_mar_2023": 79725,
+                    "apr_2023_to_mar_2024": 85106,
+                    "apr_2024_to_mar_2025": 87659
+                },
+                "step_7": {
+                    "apr_2022_to_mar_2023": 76590,
+                    "apr_2023_to_mar_2024": 81760,
+                    "apr_2024_to_mar_2025": 84213
+                },
+                "step_8": {
+                    "apr_2022_to_mar_2023": 73459,
+                    "apr_2023_to_mar_2024": 78417,
+                    "apr_2024_to_mar_2025": 80770
+                },
+                "step_9": {
+                    "apr_2022_to_mar_2023": 70326,
+                    "apr_2023_to_mar_2024": 75073,
+                    "apr_2024_to_mar_2025": 77325
+                },
+                "step_10": {
+                    "apr_2022_to_mar_2023": 67192,
+                    "apr_2023_to_mar_2024": 71727,
+                    "apr_2024_to_mar_2025": 73879
+                },
+                "step_11": {
+                    "apr_2022_to_mar_2023": 64061,
+                    "apr_2023_to_mar_2024": 68385,
+                    "apr_2024_to_mar_2025": 70437
                 }
             }
         },
-        "B": {
+        "appendix_b": {
             "title": "List of Investigators",
-            "content": {
-                "investigators": [
-                    "Cheryl Otto", "Linda Sum", "Rebecca Frame", "Irene Holden", 
-                    "Deborah Lovett", "Jean Greatbatch", "John Sanderson", 
-                    "Marli Rusen", "Nicole Byers", "Michael Oland"
-                ]
-            }
+            "investigators": [
+                "Cheryl Otto", "Linda Sum", "Rebecca Frame", "Irene Holden", 
+                "Deborah Lovett", "Jean Greatbatch", "John Sanderson", 
+                "Marli Rusen", "Nicole Byers", "Michael Oland"
+            ]
         },
-        "D": {
+        "appendix_d": {
             "title": "List of Arbitrators",
-            "content": {
-                "arbitrators": [
-                    "Chris Sullivan", "John Hall", "Komi Kandola", "Corinn Bell",
-                    "Mark Brown", "Randy Noonan", "Alison Matacheskie"
-                ]
-            }
+            "arbitrators": [
+                "Chris Sullivan", "John Hall", "Komi Kandola", "Corinn Bell",
+                "Mark Brown", "Randy Noonan", "Alison Matacheskie"
+            ]
         },
-        "F": {
+        "appendix_f": {
             "title": "Medical Travel Referral Benefit",
-            "content": {
-                "benefit_summary": {
-                    "deductible_amount": "None",
-                    "benefit_amount": "100% of eligible expenses", 
-                    "individual_maximum": "$10,000 per year",
-                    "daily_limit": "$125 per day for a maximum of 50 days per calendar year"
-                },
-                "eligible_expenses": [
-                    "Public transportation (scheduled air, rail, bus, taxi and/or ferry)",
-                    "Automobile use as set out in the policy or Collective Agreement",
-                    "Accommodation in a commercial facility",
-                    "Reasonable and customary expenses for meals",
-                    "Transportation and accommodation of an attendant where necessary"
-                ]
-            }
+            "benefit_summary": {
+                "deductible_amount": "None",
+                "benefit_amount": "100% of eligible expenses", 
+                "individual_maximum": "$10,000 per year",
+                "daily_limit": "$125 per day for a maximum of 50 days per calendar year"
+            },
+            "eligible_expenses": [
+                "Public transportation (scheduled air, rail, bus, taxi and/or ferry)",
+                "Automobile use as set out in the policy or Collective Agreement",
+                "Accommodation in a commercial facility",
+                "Reasonable and customary expenses for meals",
+                "Transportation and accommodation of an attendant where necessary"
+            ]
         },
-        "G": {
+        "appendix_g": {
             "title": "Dental Plan",
-            "content": {
-                "description": "The nine month limitation applies to 1) polishing, 2) the application of fluoride, and 3) the recall itself. The nine month limitation does not apply to scaling; any current scaling limits in dental contracts apply."
-            }
+            "content": "The nine month limitation applies to 1) polishing, 2) the application of fluoride, and 3) the recall itself. The nine month limitation does not apply to scaling; any current scaling limits in dental contracts apply."
         },
-        "H": {
+        "appendix_h": {
             "title": "Family Members for the Purpose of Clause 7.8 Compassionate Care Leave",
-            "content": {
-                "family_members_by_relationship": [
-                    "Spouse", "Children", "Children's spouses", "Step-children", "Step-children-in-law",
-                    "Siblings", "In-law siblings", "Parents", "Step-parents", "Parents-in-law",
-                    "Grandparents", "Grandchildren", "Siblings' children", "Guardians", "Step-siblings",
-                    "Parents' siblings", "Parents-in-laws' siblings", "Current or former foster-parents",
-                    "Current or former foster children", "Current or former wards", "Current or former guardians"
-                ],
-                "family_members_by_spouse_relationship": [
-                    "Spouse's parents or step-parents", "Spouse's siblings or step-siblings", "Spouse's children",
-                    "Spouse's grandparents", "Spouse's grandchildren", "Spouse's parents' siblings",
-                    "Spouse's siblings' children", "Spouse's current or former foster parents", "Spouse's current or former wards"
-                ],
-                "deemed_family_members": [
-                    "Any other person in the same household who is dependent upon the employee",
-                    "Any person who lives with the employee as a member of the employee's family",
-                    "Whether or not related to an employee by blood, adoption, marriage or common-law partnership, an individual with a serious medical condition who considers the employee to be, or whom the employee considers to be, like a close relative"
-                ]
-            }
+            "family_members_by_relationship": [
+                "Spouse", "Children", "Children's spouses", "Step-children", "Step-children-in-law",
+                "Siblings", "In-law siblings", "Parents", "Step-parents", "Parents-in-law",
+                "Grandparents", "Grandchildren", "Siblings' children", "Guardians", "Step-siblings",
+                "Parents' siblings", "Parents-in-laws' siblings", "Current or former foster-parents",
+                "Current or former foster children", "Current or former wards", "Current or former guardians"
+            ],
+            "family_members_by_spouse_relationship": [
+                "Spouse's parents or step-parents", "Spouse's siblings or step-siblings", "Spouse's children",
+                "Spouse's grandparents", "Spouse's grandchildren", "Spouse's parents' siblings",
+                "Spouse's siblings' children", "Spouse's current or former foster parents", "Spouse's current or former wards"
+            ],
+            "deemed_family_members": [
+                "Any other person in the same household who is dependent upon the employee",
+                "Any person who lives with the employee as a member of the employee's family",
+                "Whether or not related to an employee by blood, adoption, marriage or common-law partnership, an individual with a serious medical condition who considers the employee to be, or whom the employee considers to be, like a close relative"
+            ]
         }
     },
-    
     "letters_of_understanding": {
-        "1": {
+        "lou_1": {
             "title": "Review of Bargaining Structure and Process",
             "content": "The Employers and the Union agree to establish a Joint Review Committee to examine the potential to develop a standardized sectoral agreement(s) and review the possible standardization of the pregnancy/parental leave provisions and the grievance procedure."
         },
-        "2": {
+        "lou_2": {
             "title": "MSP Funding Change",
             "content": "If the government, at any time in the future, reverts to an individually paid premium system for basic medical insurance, the Parties agree that the Employer will pay 100% of the premium for employees."
         },
-        "3": {
+        "lou_3": {
             "title": "Joint Labour Management Discussion", 
             "content": "The Parties agree that it would be beneficial for the local employer and the local bargaining unit to discuss matters of mutual concern regarding contact time/instructional hours at their regular joint Union-Management meetings."
         },
-        "4": {
+        "lou_4": {
             "title": "Public Sector General Wage Increases",
             "content": "If a public sector employer enters into a Collective Agreement with cumulative nominal general wage increases and Cost of Living Adjustments that exceed those in the 2022-2025 BCGEU Instructors Common Agreement, the total GWIs and COLAs paid out will be adjusted to be equivalent."
         },
-        "5": {
+        "lou_5": {
             "title": "Cost of Living Adjustment", 
             "content": "Provides for Cost of Living Adjustments (COLA) to be applied to general wage increases effective April 1, 2023 (maximum 1.25%) and April 1, 2024 (maximum 1.00%) based on the annualized average of BC CPI over twelve months."
         }
-    },
-    
-    "contact_information": {
-        "bcgeu_local_712": {
-            "name": "BCGEU Local 712 (Coast Mountain College)",
-            "phone": "(250) 635-6511",
-            "email": "local712@bcgeu.ca",
-            "website": "www.bcgeu.ca"
-        },
-        "psea": {
-            "name": "Post-Secondary Employers' Association",
-            "phone": "(604) 742-0229",
-            "email": "info@psea.bc.ca",
-            "website": "www.psea.bc.ca"
-        }
-    },
-    
-    "citation_format": {
-        "article": "Article {number}: {title}",
-        "section": "Article {article_number}, Section {section_number}: {section_title}", 
-        "clause": "Clause {clause_number}",
-        "appendix": "Appendix {letter}: {title}",
-        "lou": "Letter of Understanding {number}: {title}"
     }
 }
