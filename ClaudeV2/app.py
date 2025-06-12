@@ -30,34 +30,6 @@ def validate_json_file(filename):
                 print("❌ Appendix 3 not found in appendices")
         else:
             print("❌ No appendices section found")
-            print("\n🔍 Investigating truncation issue...")
-            
-            # Check if this is a truncation issue during parsing
-            if 'articles' in data:
-                print(f"Articles found: {len(data['articles'])} articles")
-                last_article = max(data['articles'].keys(), key=int)
-                print(f"Last article parsed: Article {last_article}")
-                
-                # Look at the end of articles section in raw text
-                articles_end_pos = content.find('  },\n  "appendices"')
-                if articles_end_pos == -1:
-                    articles_end_pos = content.find('},\n  "appendices"')
-                if articles_end_pos == -1:
-                    articles_end_pos = content.find('}\n  },\n  "appendices"')
-                
-                if articles_end_pos > 0:
-                    print(f"Found articles-to-appendices transition at position: {articles_end_pos}")
-                    
-                    # Show more context around the transition
-                    start = max(0, articles_end_pos - 200)
-                    end = min(len(content), articles_end_pos + 300)
-                    context = content[start:end]
-                    print(f"\nExtended context around transition:")
-                    print("=" * 60)
-                    print(context)
-                    print("=" * 60)
-                else:
-                    print("Could not find articles-to-appendices transition")
             
         return data
         
@@ -77,14 +49,6 @@ def validate_json_file(filename):
             print(f"{marker}{i+1:4d}: {lines[i]}")
         print("-" * 50)
         
-        # Try to find common JSON issues
-        print("\nCommon JSON issues to check:")
-        print("1. Missing commas between object properties")
-        print("2. Extra trailing commas")
-        print("3. Unescaped quotes in strings")
-        print("4. Mismatched brackets/braces")
-        print("5. Invalid escape sequences")
-        
         return None
         
     except FileNotFoundError:
@@ -94,31 +58,105 @@ def validate_json_file(filename):
         print(f"❌ Unexpected error: {e}")
         return None
 
-def find_appendices_manually(filename):
+def find_truncation_issue(filename):
     """
-    Manually search for appendices in the file to see if it exists as text
+    Specifically investigate why JSON parsing truncates before appendices
     """
     try:
         with open(filename, 'r', encoding='utf-8') as f:
             content = f.read()
         
-        # Search for appendices mentions
-        appendices_pos = content.find('"appendices"')
-        appendix_3_pos = content.find('"appendix_3"')
+        print("\n🔍 Investigating truncation issue...")
         
-        print(f"\n📍 Manual search results:")
-        print(f"'appendices' found at position: {appendices_pos}")
-        print(f"'appendix_3' found at position: {appendix_3_pos}")
+        # Find the exact position where articles end and appendices begin
+        patterns_to_try = [
+            '  },\n  "appendices"',
+            '},\n  "appendices"', 
+            '}\n  },\n  "appendices"',
+            '  }\n  },\n  "appendices"',
+            '    }\n  },\n  "appendices"'
+        ]
         
-        if appendices_pos > 0:
-            # Show context around appendices
-            start = max(0, appendices_pos - 100)
-            end = min(len(content), appendices_pos + 200)
-            print(f"\nContext around 'appendices':")
-            print(f"...{content[start:end]}...")
+        transition_pos = -1
+        found_pattern = ""
+        
+        for pattern in patterns_to_try:
+            pos = content.find(pattern)
+            if pos > 0:
+                transition_pos = pos
+                found_pattern = pattern
+                break
+        
+        if transition_pos > 0:
+            print(f"Found transition pattern: {repr(found_pattern)}")
+            print(f"Transition at position: {transition_pos}")
+            
+            # Show context around transition
+            start = max(0, transition_pos - 300)
+            end = min(len(content), transition_pos + 400)
+            context = content[start:end]
+            
+            print("\nContext around articles->appendices transition:")
+            print("=" * 70)
+            print(context)
+            print("=" * 70)
+            
+            # Check for invisible characters
+            transition_text = content[transition_pos:transition_pos+50]
+            print(f"\nTransition bytes: {transition_text.encode('utf-8')}")
+            
+        else:
+            print("Could not find articles-to-appendices transition")
             
     except Exception as e:
-        print(f"Error in manual search: {e}")
+        print(f"Error in truncation investigation: {e}")
+
+def test_partial_parsing(filename):
+    """
+    Test parsing parts of the JSON to isolate the issue
+    """
+    try:
+        with open(filename, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        print("\n🧪 Testing partial parsing...")
+        
+        # Find where appendices starts
+        appendices_pos = content.find('"appendices"')
+        if appendices_pos > 0:
+            # Try parsing just up to appendices
+            partial_content = content[:appendices_pos-10] + '\n  }\n}'
+            
+            try:
+                partial_data = json.loads(partial_content)
+                print("✅ Partial parsing (up to appendices) works")
+                print(f"Partial keys: {list(partial_data.keys())}")
+            except Exception as e:
+                print(f"❌ Partial parsing failed: {e}")
+            
+            # Try parsing just the appendices section
+            appendices_start = content.find('"appendices": {')
+            if appendices_start > 0:
+                # Find the end of appendices (before letters_of_agreement)
+                appendices_end = content.find('"letters_of_agreement"', appendices_start)
+                if appendices_end == -1:
+                    appendices_end = len(content) - 10
+                else:
+                    appendices_end = content.rfind('},', appendices_start, appendices_end)
+                
+                appendices_only = '{\n  ' + content[appendices_start:appendices_end] + '\n  }\n}'
+                
+                try:
+                    appendices_data = json.loads(appendices_only)
+                    print("✅ Appendices-only parsing works")
+                    print(f"Appendices keys: {list(appendices_data['appendices'].keys())}")
+                except Exception as e:
+                    print(f"❌ Appendices-only parsing failed: {e}")
+                    print("Sample appendices content:")
+                    print(appendices_only[:500])
+        
+    except Exception as e:
+        print(f"Error in partial parsing test: {e}")
 
 if __name__ == "__main__":
     filename = "complete_local.json"
@@ -126,17 +164,13 @@ if __name__ == "__main__":
     print("🔍 Validating JSON file...")
     print("=" * 60)
     
-    # First try to validate the JSON
+    # Validate the JSON
     data = validate_json_file(filename)
     
-    # Also do a manual search
-    find_appendices_manually(filename)
+    # If no appendices found, investigate further
+    if data and 'appendices' not in data:
+        find_truncation_issue(filename)
+        test_partial_parsing(filename)
     
     print("\n" + "=" * 60)
     print("Validation complete!")
-    
-    if data is None:
-        print("\n💡 Next steps:")
-        print("1. Fix the JSON syntax error shown above")
-        print("2. Re-run this validator")
-        print("3. Once valid, your Streamlit app should find Appendix 3")
