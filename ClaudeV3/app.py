@@ -5,11 +5,11 @@ import os
 
 # Import the agreement data dictionaries
 try:
-    from bcgeu_local_data import AGREEMENT_DATA as LOCAL_AGREEMENT_DATA
-    from bcgeu_common_data import AGREEMENT_DATA as COMMON_AGREEMENT_DATA
+    from ClaudeV3.bcgeu_local_data import AGREEMENT_DATA as LOCAL_AGREEMENT_DATA
+    from ClaudeV3.bcgeu_common_data import AGREEMENT_DATA as COMMON_AGREEMENT_DATA
 except ImportError as e:
     st.error(f"Could not import agreement data: {e}")
-    st.error("Please ensure 'bcgeu_local_data.py' and 'bcgeu_common_data.py' are in the same directory as this app.")
+    st.error("Please ensure 'bcgeu_local_data.py' and 'bcgeu_common_data.py' are in the ClaudeV3 directory.")
     st.stop()
 
 # Set page config
