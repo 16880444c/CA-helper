@@ -180,7 +180,6 @@ Provide definitive, management-favorable guidance with specific citations and qu
         response = client.messages.create(
             model="claude-3-5-sonnet-20241022",
             max_tokens=1500,
-            temperature=0.1,
             system=system_prompt,
             messages=[
                 {"role": "user", "content": user_message}
@@ -196,7 +195,7 @@ Provide definitive, management-favorable guidance with specific citations and qu
     except anthropic.RateLimitError:
         return "⚠️ **Rate Limit Reached**\n\nThe system has reached its usage limit for this minute. This typically happens when processing large amounts of text.\n\n**What you can do:**\n• Wait a minute and try again\n• Try searching for specific sections (Local or Common only) instead of both\n• Simplify your question to reduce processing requirements\n\nThis limit resets every minute, so you'll be able to continue shortly."
     
-    except anthropic.APIError as e:
+    except anthropic.APIStatusError as e:
         return f"⚠️ **API Error**\n\nThere was an issue connecting to the AI service. Please try again in a moment.\n\nIf the problem persists, please contact support."
     
     except Exception as e:
