@@ -178,7 +178,7 @@ Provide definitive, management-favorable guidance with specific citations and qu
     
     try:
         response = client.messages.create(
-            model="claude-sonnet-4-5-20250929",
+            model="claude-sonnet-4-6",
             max_tokens=1500,
             system=system_prompt,
             messages=[
@@ -196,10 +196,10 @@ Provide definitive, management-favorable guidance with specific citations and qu
         return "⚠️ **Rate Limit Reached**\n\nThe system has reached its usage limit for this minute. This typically happens when processing large amounts of text.\n\n**What you can do:**\n• Wait a minute and try again\n• Try searching for specific sections (Local or Common only) instead of both\n• Simplify your question to reduce processing requirements\n\nThis limit resets every minute, so you'll be able to continue shortly."
     
     except anthropic.APIStatusError as e:
-        return f"⚠️ **API Error**\n\nThere was an issue connecting to the AI service. Please try again in a moment.\n\nIf the problem persists, please contact support."
+        return f"⚠️ **API Error** (HTTP {e.status_code})\n\n**Details:** {e.message}"
     
     except Exception as e:
-        return f"⚠️ **Unexpected Error**\n\nSomething went wrong while processing your request. Please try again.\n\nIf the issue continues, please contact support."
+        return f"⚠️ **Unexpected Error**\n\n`{type(e).__name__}: {str(e)}`"
 
 def main():
     st.title("⚖️ Coast Mountain College Agreement Assistant")
